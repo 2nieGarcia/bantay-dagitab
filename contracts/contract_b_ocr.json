@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contract B - OCR to Database",
+  "description": "Data contract for OCR module extracting data from MERALCO bills. Owner: Web/OCR Team",
+  "type": "object",
+  "required": [
+    "user_account_id",
+    "scan_timestamp",
+    "meralco_account_number",
+    "billing_period",
+    "total_kwh_consumed",
+    "total_bill_php"
+  ],
+  "properties": {
+    "user_account_id": {
+      "type": "string",
+      "description": "User account identifier",
+      "example": "user_001"
+    },
+    "scan_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the bill was scanned",
+      "example": "2024-03-01T09:00:00Z"
+    },
+    "meralco_account_number": {
+      "type": "string",
+      "description": "MERALCO account number extracted from the bill",
+      "example": "1234567890"
+    },
+    "billing_period": {
+      "type": "string",
+      "description": "Billing period as shown on the bill",
+      "example": "Feb 2024"
+    },
+    "total_kwh_consumed": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total kilowatt-hours consumed during the billing period",
+      "example": 125.5
+    },
+    "total_bill_php": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total bill amount in Philippine Pesos",
+      "example": 1500.00
+    }
+  },
+  "example": {
+    "user_account_id": "user_001",
+    "scan_timestamp": "2024-03-01T09:00:00Z",
+    "meralco_account_number": "1234567890",
+    "billing_period": "Feb 2024",
+    "total_kwh_consumed": 125.5,
+    "total_bill_php": 1500.00
+  }
+}

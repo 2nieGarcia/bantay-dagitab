@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contract C - ML Anomaly Alert Output",
+  "description": "Data contract for anomaly detection alerts. Owner: ML Team",
+  "type": "object",
+  "required": [
+    "alert_id",
+    "device_id",
+    "user_account_id",
+    "timestamp",
+    "alert_type",
+    "expected_wattage_range",
+    "actual_wattage",
+    "message"
+  ],
+  "properties": {
+    "alert_id": {
+      "type": "string",
+      "description": "Unique identifier for the alert",
+      "example": "alert_991"
+    },
+    "device_id": {
+      "type": "string",
+      "description": "Device that triggered the alert",
+      "example": "meter_manila_001"
+    },
+    "user_account_id": {
+      "type": "string",
+      "description": "User account identifier",
+      "example": "user_001"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the anomaly was detected",
+      "example": "2024-03-01T14:16:00Z"
+    },
+    "alert_type": {
+      "type": "string",
+      "enum": ["HIGH_USAGE_ANOMALY", "UNUSUAL_PATTERN", "DEVICE_MALFUNCTION", "BILLING_DISCREPANCY"],
+      "description": "Type/category of the anomaly alert",
+      "example": "HIGH_USAGE_ANOMALY"
+    },
+    "expected_wattage_range": {
+      "type": "string",
+      "description": "Expected wattage range based on historical data",
+      "example": "100-250"
+    },
+    "actual_wattage": {
+      "type": "number",
+      "description": "Actual wattage that triggered the alert",
+      "example": 450.5
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable alert message for the user",
+      "example": "Warning: Your current usage is 80% higher than your historical average for this time of day. Check appliances to avoid bill shock at end of billing cycle."
+    }
+  },
+  "example": {
+    "alert_id": "alert_991",
+    "device_id": "meter_manila_001",
+    "user_account_id": "user_001",
+    "timestamp": "2024-03-01T14:16:00Z",
+    "alert_type": "HIGH_USAGE_ANOMALY",
+    "expected_wattage_range": "100-250",
+    "actual_wattage": 450.5,
+    "message": "Warning: Your current usage is 80% higher than your historical average for this time of day. Check appliances to avoid bill shock at end of billing cycle."
+  }
+}

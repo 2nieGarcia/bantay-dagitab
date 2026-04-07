@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contract D - Chatbot Query/Response",
+  "description": "Data contract for conversational AI chatbot. Owner: Web Team (UI) + ML Team (Backend)",
+  "type": "object",
+  "required": [
+    "user_account_id",
+    "query_timestamp",
+    "user_query",
+    "context",
+    "response"
+  ],
+  "properties": {
+    "user_account_id": {
+      "type": "string",
+      "description": "User account identifier",
+      "example": "user_001"
+    },
+    "query_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the query",
+      "example": "2024-03-01T14:20:00Z"
+    },
+    "user_query": {
+      "type": "string",
+      "description": "Natural language query from the user",
+      "example": "Why is my bill higher this month?"
+    },
+    "context": {
+      "type": "object",
+      "description": "Contextual data used to generate the response",
+      "required": ["billing_period", "total_kwh_consumed", "total_bill_php", "anomalies_flagged"],
+      "properties": {
+        "billing_period": {
+          "type": "string",
+          "description": "Current billing period",
+          "example": "Feb 2024"
+        },
+        "total_kwh_consumed": {
+          "type": "number",
+          "description": "Total kWh consumed in the period",
+          "example": 125.5
+        },
+        "total_bill_php": {
+          "type": "number",
+          "description": "Total bill amount in PHP",
+          "example": 1500.00
+        },
+        "anomalies_flagged": {
+          "type": "integer",
+          "description": "Number of anomalies detected in the period",
+          "example": 3
+        }
+      }
+    },
+    "response": {
+      "type": "string",
+      "description": "AI-generated response to the user query",
+      "example": "Your February bill is higher than usual. Our system flagged 3 usage spikes this month, likely from high-wattage appliances running during peak hours. Reducing air conditioner usage between 6-9PM could lower your next bill significantly."
+    }
+  },
+  "example": {
+    "user_account_id": "user_001",
+    "query_timestamp": "2024-03-01T14:20:00Z",
+    "user_query": "Why is my bill higher this month?",
+    "context": {
+      "billing_period": "Feb 2024",
+      "total_kwh_consumed": 125.5,
+      "total_bill_php": 1500.00,
+      "anomalies_flagged": 3
+    },
+    "response": "Your February bill is higher than usual. Our system flagged 3 usage spikes this month, likely from high-wattage appliances running during peak hours. Reducing air conditioner usage between 6-9PM could lower your next bill significantly."
+  }
+}

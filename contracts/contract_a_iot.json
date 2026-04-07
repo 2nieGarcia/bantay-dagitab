@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contract A - IoT to Database",
+  "description": "Data contract for IoT power monitor sending readings to the cloud database. Owner: IoT/Backend Team",
+  "type": "object",
+  "required": [
+    "device_id",
+    "user_account_id",
+    "timestamp",
+    "avg_wattage",
+    "reading_interval_minutes"
+  ],
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Unique identifier for the IoT device/meter",
+      "example": "meter_manila_001"
+    },
+    "user_account_id": {
+      "type": "string",
+      "description": "User account identifier for user-to-device mapping",
+      "example": "user_001"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the reading",
+      "example": "2024-03-01T14:15:00Z"
+    },
+    "avg_wattage": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Average wattage over the reading interval",
+      "example": 450.5
+    },
+    "reading_interval_minutes": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Duration of the averaging interval in minutes",
+      "example": 15
+    }
+  },
+  "example": {
+    "device_id": "meter_manila_001",
+    "user_account_id": "user_001",
+    "timestamp": "2024-03-01T14:15:00Z",
+    "avg_wattage": 450.5,
+    "reading_interval_minutes": 15
+  }
+}
