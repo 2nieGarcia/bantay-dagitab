@@ -1,140 +1,36 @@
-# Frontend - Web Dashboard
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Web-based dashboard for energy monitoring and chatbot interface.
+## Getting Started
 
-## Tech Stack
-
-- **Framework**: TBA (React recommended)
-- **Styling**: CSS Library (TailwindCSS / Bootstrap)
-- **State Management**: TBA
-- **Charts**: Chart.js / Recharts
-
-## Project Structure
-
-```
-frontend/
-├── public/
-│   └── index.html
-├── src/
-│   ├── components/
-│   │   ├── Dashboard/
-│   │   ├── BillUpload/
-│   │   ├── Chatbot/
-│   │   └── Alerts/
-│   ├── services/
-│   │   └── api.js
-│   ├── App.js
-│   └── index.js
-├── package.json
-├── Dockerfile
-└── README.md
-```
-
-## Features
-
-1. **Real-time Usage Dashboard**
-   - Current wattage display
-   - Usage graphs (hourly, daily, weekly)
-   - Comparison with previous periods
-
-2. **Bill Upload & OCR**
-   - Upload MERALCO bill images
-   - View extracted data
-   - Historical bill comparison
-
-3. **Anomaly Alerts**
-   - Real-time alert notifications
-   - Alert history
-   - Actionable recommendations
-
-4. **Chatbot Interface**
-   - Embedded chat widget
-   - Bill explanation queries
-   - Energy-saving tips
-
-## Data Contracts
-
-This module consumes:
-
-- **Contract B**: Display OCR-extracted bill data
-- **Contract C**: Display anomaly alerts
-- **Contract D**: Chatbot interface (sends queries, displays responses)
-
-## Development Setup
-
-### Without Docker
+First, run the development server:
 
 ```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm start
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-### With Docker
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```bash
-docker-compose up frontend
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Environment Variables
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-Create `.env` file:
+## Learn More
 
-```env
-REACT_APP_API_URL=http://localhost:8000/api
-REACT_APP_ML_API_URL=http://localhost:8001
-```
+To learn more about Next.js, take a look at the following resources:
 
-## API Integration
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-```javascript
-// Example API service
-const API_BASE = process.env.REACT_APP_API_URL;
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-export const api = {
-  // Get readings
-  getReadings: (userId) => 
-    fetch(`${API_BASE}/readings/?user=${userId}`),
-  
-  // Upload bill for OCR
-  uploadBill: (formData) =>
-    fetch(`${API_BASE}/bills/scan/`, {
-      method: 'POST',
-      body: formData,
-    }),
-  
-  // Get alerts
-  getAlerts: (userId) =>
-    fetch(`${API_BASE}/alerts/?user=${userId}`),
-  
-  // Chatbot query
-  chatQuery: (query, context) =>
-    fetch(`${ML_API_BASE}/chatbot/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_query: query, context }),
-    }),
-};
-```
+## Deploy on Vercel
 
-## Team Responsibilities
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-- Dashboard UI design and implementation
-- Bill upload interface
-- Chatbot UI (frontend only - backend handled by ML team)
-- Real-time data visualization
-- Mobile responsiveness
-
-## TODO
-
-- [ ] Finalize frontend framework choice
-- [ ] Setup project skeleton
-- [ ] Design dashboard wireframes
-- [ ] Implement usage charts
-- [ ] Create bill upload component
-- [ ] Build chatbot interface
-- [ ] Add responsive design
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
