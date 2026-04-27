@@ -2,12 +2,27 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Sum
-from .serializers import ChatLogSerializer
+from .serializers import ChatLogSerializer, ChatRequestSerializer
 from .services import FastAPIClient
 from billing.models import Bill
 from analytics.models import AnomalyAlert
+from drf_spectacular.utils import extend_schema, OpenApiExample
 
 class ChatbotInteractionView(APIView):
+    @extend_schema(
+        summary="Ask the AI Chatbot (Contract D)",
+        description="Receives a user query, constructs context from recent bills and anomalies, and fetches a response from the ML service.",
+        request=ChatRequestSerializer,
+        responses={201: ChatLogSerializer},
+        examples=[
+            OpenApiExample(
+                "Valid Chat Query",
+                value={
+                    "query": "Why was my bill so high last month?"
+                }
+            )
+        ]
+    )
     def post(self, request, *args, **kwargs):
         user_query = request.data.get('query', '')
         user = request.user
