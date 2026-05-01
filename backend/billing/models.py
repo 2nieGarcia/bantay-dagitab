@@ -1,9 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+from django.utils import timezone
+
 class Bill(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bills')
-    scan_timestamp = models.DateTimeField(auto_now_add=True)
+    scan_timestamp = models.DateTimeField(default=timezone.now)
     meralco_account_number = models.CharField(max_length=100)
     billing_period = models.CharField(max_length=100)
     total_kwh_consumed = models.FloatField()

@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import BillListCreateView
+from .views import BillCreateView, BillListView
 
 urlpatterns = [
-    path('', BillListCreateView.as_view(), name='bill-list-create'),
+    path('', BillListView.as_view(), name='bill-list'),
+    path('ingest/', BillCreateView.as_view(), name='bill-create'),
 ]
