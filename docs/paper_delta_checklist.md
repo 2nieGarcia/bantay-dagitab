@@ -5,7 +5,7 @@ Two clearly separated parts:
 - **Part 1 — Paper-only fixes.** Things you fix in the Word document. No code changes. ~10–15 minutes total.
 - **Part 2 — System implementation.** Code and database work that has to exist in the repository so the paper's claims are true when the teacher checks. This is the actual project.
 
-Everything in this file is grounded in the 25-page shortened final paper (`Bantay-Dagitab_Final_Paper.pdf`).
+Everything in this file is grounded in the submitted paper (`docs/paper_draft.pdf` / source: `Project_Proposal.md`).
 
 ---
 
@@ -13,11 +13,9 @@ Everything in this file is grounded in the 25-page shortened final paper (`Banta
 
 These don't touch the codebase. You can do them now, in any order, and they're fully under your control.
 
-## P1.1 — Insert ER diagram for Figure V.1 (page 12)
+## P1.1 — Insert ER diagram for Figure V.1 (page 12) ✅ DONE
 
-The paper has a `[ INSERT IMAGE HERE: Figure V.1 ]` placeholder for the Entity-Relationship Diagram.
-
-**How:** Open the Mermaid block from §V.A.3 of `paper_full_draft.md`. Paste it into [mermaid.live](https://mermaid.live). Click *Actions → PNG* (or SVG for sharpest output). Insert the image in Word where the placeholder sits. Delete the placeholder text.
+The ER diagram is embedded in the submitted paper as `![][image1]` under Figure V.1. Verify the PNG renders correctly in the compiled PDF.
 
 ## P1.2 — Bold the PKs and italicize the FKs in §V.B.1 (page 13)
 
@@ -61,11 +59,11 @@ Everything below must exist in the repository for the paper to be truthful. Orga
 ## §A — Subsystems claimed in Chapters II, IV, VII
 
 ### P2.1 ESP32 firmware
-**Paper claim:** ESP32 samples current every 5 minutes, POSTs Contract A payloads to `/api/iot/readings/ingest/`.
+**Paper claim:** ESP32 samples current every 15 minutes, POSTs Contract A payloads to `/api/iot/readings/ingest/`.
 **Repo state:** `iot/` is README-only — no `.ino` files.
 **Minimum fix:**
 - Write `iot/firmware/power_monitor/power_monitor.ino` + `config.h` per the existing `iot/README.md` spec, flash one ESP32.
-- *If hardware not available:* Write a Python "ESP32 simulator" script that POSTs Contract A payloads on a 5-minute timer. Demo this; call it the firmware emulator.
+- *If hardware not available:* Write a Python "ESP32 simulator" script that POSTs Contract A payloads on a 15-minute timer. Demo this; call it the firmware emulator.
 
 ### P2.2 OCR pipeline
 **Paper claim:** MERALCO bill photos are processed by an OCR module that extracts `meralco_account_number`, `billing_period`, `total_kwh_consumed`, `total_bill_php`.
@@ -74,23 +72,25 @@ Everything below must exist in the repository for the paper to be truthful. Orga
 - Create `backend/ocr/processor.py`, `meralco_parser.py`, `utils.py`.
 - `processor` takes an uploaded image, runs `cv2`-based deskew+threshold, calls `pytesseract.image_to_string`, passes result to `meralco_parser.parse()`.
 - `meralco_parser` uses regex to pull out account number, billing period, kWh, total amount.
-- Add endpoint `POST /api/billing/scan/` accepting `multipart/form-data`, calls OCR, forwards extracted data through `BillSerializer`.
+- Add endpoint `POST /api/billing/ingest/` accepting `multipart/form-data`, calls OCR, forwards extracted data through `BillSerializer`.
 
 ### P2.3 FastAPI ML service
-**Paper claim:** FastAPI service hosts anomaly detection (Isolation Forest / Z-score) and a Hugging Face LLM chatbot.
+**Paper claim:** FastAPI service hosts anomaly detection (Isolation Forest / Z-score). The chatbot is **not** in the FastAPI path — Django calls an external LLM API directly (§IV.B, §VII.A.4). FastAPI deps in Table IV.C.2 confirm: no `transformers`/`torch` listed.
 **Repo state:** `ml/` has only README, Dockerfile, requirements.txt. No `ml/app/` code.
 **Minimum fix:** Create:
-- `ml/app/main.py` — FastAPI app with `/anomaly/detect`, `/chatbot/query`, `/health`.
-- `ml/app/routers/anomaly.py` + `chatbot.py`.
+- `ml/app/main.py` — FastAPI app with `/anomaly/detect`, `/health`.
+- `ml/app/routers/anomaly.py`.
 - `ml/app/services/anomaly_detector.py` — sklearn `IsolationForest` on recent IoT readings.
-- `ml/app/services/chatbot_service.py` — Hugging Face model (`microsoft/DialoGPT-medium` if memory allows; otherwise a prompt-templated rule-based responder).
-- `ml/app/schemas/anomaly.py` + `chatbot.py` — Pydantic models matching Contracts C and D.
+- `ml/app/schemas/anomaly.py` — Pydantic models matching Contract C.
 
-### P2.4 Live chatbot integration (Django ↔ FastAPI)
-**Paper claim:** Chatbot view assembles context, calls FastAPI, persists via `ChatLog.objects.create()`, all in `@transaction.atomic`.
+> ⚠ Paper-internal inconsistency: §IV.C still mentions "FastAPI isolates PyTorch memory from the request-serving tier." If the chatbot is external-API only, that line should be revised in the paper — PyTorch isn't in Table IV.C.2's ML deps either.
+
+### P2.4 Live chatbot integration (Django ↔ external LLM API)
+**Paper claim:** Chatbot view assembles context from recent bills/alerts via the Django ORM, calls an **external LLM API** (§IV.B, §VII.A.4), persists via `ChatLog.objects.create()`, all in `@transaction.atomic`.
 **Repo state:** `backend/chatbot/services.py` returns a mock string. View is **not** wrapped in `@transaction.atomic`.
 **Minimum fix:**
-- In `chatbot/services.py`, uncomment the `requests.post(...)` call so it actually hits the FastAPI service. Point `FASTAPI_URL` env var at the `ml` container, e.g., `http://ml:8001/chatbot/query`.
+- In `chatbot/services.py`, replace the mock with a call to your chosen LLM provider (Anthropic / OpenAI / etc.). Read provider config from env vars: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`.
+- Add the provider SDK to `backend/requirements.txt` (e.g., `anthropic>=0.39,<1.0` or `openai>=1.0,<2.0`).
 - In `chatbot/views.py`, wrap the body of `post()` in `with transaction.atomic():`. Add `from django.db import transaction`.
 
 ### P2.5 Frontend live REST integration
@@ -98,7 +98,7 @@ Everything below must exist in the repository for the paper to be truthful. Orga
 **Repo state:** `frontend/app/page.tsx` uses 100% hardcoded mock data — no `fetch()` calls.
 **Minimum fix:** Replace mock data with real fetches against:
 - `GET /api/iot/readings/` → Dashboard view
-- `GET /api/billing/` + `POST /api/billing/scan/` → Upload Bills view
+- `GET /api/billing/` + `POST /api/billing/ingest/` → Upload Bills view
 - `GET /api/analytics/` → Anomaly Detection view
 - `POST /api/chat/ask/` → chatbot widget
 **Priority:** Dashboard + Anomaly views are most important for the demo flow.
@@ -127,14 +127,19 @@ indexes = [models.Index(fields=['user', '-scan_timestamp'], name='idx_bill_user_
 Then `python manage.py makemigrations && python manage.py migrate`.
 
 ### P2.7 Seed-data script  *(§VII.B.1)*
-**Paper claim:** "Python seed script populated 30 households × 90 days × 5-minute interval = 777,600 IoTReadings, 270 Bills, 1,500 AnomalyAlerts."
+**Paper claim:** "Python seed script populated 30 simulated households, 90 days of fifteen-minute telemetry per household (777,600 IoTReading rows total), 270 Bill rows, 1,500 AnomalyAlert rows."
+
+> ⚠ **Paper-internal math inconsistency.** 30 households × 90 days × 96 readings/day (15-min cadence) = **259,200**, not 777,600. The 777,600 figure is correct for **5-min** cadence (288 readings/day). Pick one in the paper before defense — recommendation: change §VII.B.1 and §VII.B.4 to say **259,200** to match the dominant "fifteen-minute" claim in §II.B.2 / §IV.B / §VII.B.1 and §II.B.2's "≈35,000 rows per year" (24 × 4 × 365 = 35,040, which is 15-min math).
+
 **Repo state:** No such script exists.
 **Minimum fix:** Create `backend/scripts/seed_perf_data.py`:
 1. Create 30 `User` + `Profile` rows.
-2. For each user, loop `range(90 * 288)` inserting `IoTReading` with `timestamp = NOW() - i * 5 minutes`, `avg_wattage = random.gauss(450, 120)` clipped to `[50, 2000]`.
+2. For each user, loop `range(90 * 96)` inserting `IoTReading` with `timestamp = NOW() - i * 15 minutes`, `avg_wattage = random.gauss(450, 120)` clipped to `[50, 2000]`.
 3. Insert 9 monthly `Bill` rows per user with realistic kWh/PHP.
 4. Insert 50 `AnomalyAlert` rows per user at random timestamps.
 Run via `python manage.py shell < scripts/seed_perf_data.py`.
+
+Result: ≈259,200 IoTReadings, 270 Bills, 1,500 AnomalyAlerts. Update the paper's 777,600 figure to 259,200 (see flag above) — or swap the cadence to 5-min and change the loop to `range(90 * 288)` with a `5 minutes` timestamp step.
 
 ### P2.8 Re-run EXPLAIN ANALYZE and replace Table VII.B.1
 **Paper claim:** Q1 247.3→3.8 ms, Q2 12.6→0.9 ms, Q3 1.8→0.4 ms (illustrative).
@@ -146,7 +151,7 @@ EXPLAIN (ANALYZE, BUFFERS) SELECT SUM(avg_wattage * reading_interval_minutes) / 
 FROM iot_monitoring_iotreading
 WHERE user_id = 1 AND timestamp >= date_trunc('month', NOW());
 ```
-Median of 5 runs each. Replace the three rows in §VII.B Table VII.B.1 with your real numbers. Update the §VII.B.4 discussion only if your speed-up magnitudes shift dramatically.
+Median of 5 runs each. Replace the three rows in §VII.B Table VII.B.1 with your real numbers. Update §VII.B.4 — both the speed-up discussion (if magnitudes shift) and the literal "777,600 rows" mention, which should match the row count fixed in §VII.B.1 per P2.7 (likely 259,200 once you align the cadence).
 
 ### P2.9 SQL Views  *(§VI.B)*
 **Paper claim:** `vw_user_monthly_consumption` (materialized), `vw_recent_anomalies`, `vw_bill_vs_telemetry` deployed.
@@ -220,17 +225,17 @@ After Day 1, Figures VII.A.1, VII.A.2, VII.A.3 (admin interface with populated d
 - P2.11 (triggers + audit table migration)
 
 **Day 3 — Application plumbing.**
-- P2.3 minimal (FastAPI: `/health`, `/chatbot/query` returning templated response, `/anomaly/detect` using `IsolationForest`)
-- P2.4 (uncomment `requests.post`, add `@transaction.atomic`)
+- P2.3 minimal (FastAPI: `/health`, `/anomaly/detect` using `IsolationForest`)
+- P2.4 (replace mock chatbot with external LLM call, add `@transaction.atomic`)
 
 **Day 4 — Frontend integration.**
 - P2.5 (Dashboard + Anomaly Detection views consuming live API). Capture Figures VII.A.6, VII.A.8, VII.A.9.
 - P2.12 (RBAC at Django layer; PostgreSQL role layer optional).
 
 **Day 5 — Lowest-priority gaps + Word polish.**
-- P2.2 (OCR pipeline + `/api/billing/scan/`). Capture VII.A.7.
+- P2.2 (OCR pipeline + `/api/billing/ingest/`). Capture VII.A.7.
 - P2.1 (ESP32 firmware, or Python simulator).
-- Part 1 fixes in Word: P1.1 (ER diagram), P1.2 (PK/FK formatting), P1.3 (instructor name), screenshot insertion.
+- Part 1 fixes in Word: P1.2 (PK/FK formatting), P1.3 (DOI additions, optional), screenshot insertion. (P1.1 ER diagram already done.)
 
 P2.13 and P2.14 are not in the day plan — handle them only if a teacher question pushes you there.
 
