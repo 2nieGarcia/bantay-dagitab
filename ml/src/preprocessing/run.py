@@ -76,22 +76,23 @@ def load_iot_from_db(device_id: Optional[str] = None) -> pd.DataFrame:
 
     with engine.connect() as conn:
         if device_id:
-            query = """
+            # Use SQLAlchemy text() for proper parameter binding
+            query = text("""
                 SELECT id, device_id, user_account_id, timestamp, avg_wattage,
                        reading_interval_minutes, ingestion_time
                 FROM iot_readings
                 WHERE processed = FALSE AND device_id = :device_id
                 ORDER BY device_id, timestamp
-            """
+            """)
             df = pd.read_sql_query(query, conn, params={"device_id": device_id})
         else:
-            query = """
+            query = text("""
                 SELECT id, device_id, user_account_id, timestamp, avg_wattage,
                        reading_interval_minutes, ingestion_time
                 FROM iot_readings
                 WHERE processed = FALSE
                 ORDER BY device_id, timestamp
-            """
+            """)
             df = pd.read_sql_query(query, conn)
 
     if df.empty:
@@ -99,6 +100,7 @@ def load_iot_from_db(device_id: Optional[str] = None) -> pd.DataFrame:
 
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     return df
+
 
 
 def get_device_list_from_db() -> List[str]:
