@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bantay Dagitab - Energy Monitoring",
+  title: "Bantay Dagitab",
   description: "Smart energy consumption monitoring and analytics platform",
 };
 
