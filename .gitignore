@@ -69,3 +69,8 @@ secrets.json
 credentials.json
 
 .vscode/
+
+# ML Pipeline — generated data and outputs
+ml/data/
+ml/output/
+ml/models/

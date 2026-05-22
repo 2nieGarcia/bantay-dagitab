@@ -39,7 +39,7 @@ The architecture uses a file-based data lake approach locally (Parquet files) wi
 - A scheduled Python script runs hourly to consolidate the daily CSV into a compressed Parquet file and archive the raw CSV.
 
 **Advanced:**
-- Replace file-based landing with a local PostgreSQL instance. IoT readings are inserted directly via the FastAPI endpoint using SQLAlchemy. This provides concurrent read/write safety and enables SQL-based querying during exploration.
+- Replace file-based landing with a local PostgreSQL instance(instead of using local postgresql use supabase) IoT readings are inserted directly via the FastAPI endpoint using SQLAlchemy. This provides concurrent read/write safety and enables SQL-based querying during exploration.
 - Add a lightweight message queue (Redis) as a buffer between the FastAPI receiver and the database writer to decouple ingestion from storage, preventing data loss if the database is temporarily unavailable.
 
 **Tradeoffs:**

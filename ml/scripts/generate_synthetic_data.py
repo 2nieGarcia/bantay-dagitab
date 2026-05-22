@@ -441,7 +441,7 @@ def generate_temperature(
 
     # Map to timestamps
     day_indices = (timestamps - timestamps[0]).days
-    weather_series = weather[day_indices.clip(0, n_days - 1)]
+    weather_series = weather[day_indices.to_series().clip(0, n_days - 1).values]
 
     # Diurnal cycle
     hours = timestamps.hour + timestamps.minute / 60.0
