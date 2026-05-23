@@ -22,7 +22,6 @@ import json
 import logging
 import os
 import smtplib
-import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
@@ -33,7 +32,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import yaml
+from sqlalchemy import text
+from sqlalchemy.engine import Connection, Engine
 
+from src.db import get_engine
 try:
     from scipy import stats as scipy_stats
     SCIPY_AVAILABLE = True
@@ -73,16 +75,9 @@ def setup_logging(level: str = "INFO") -> None:
 # Database Layer
 # ============================================================================
 
-def get_db_connection(db_path: Path) -> sqlite3.Connection:
-    """Create a read-only connection to the deployment database."""
-    if not db_path.exists():
-        raise FileNotFoundError(f"Database not found: {db_path}")
-
-    # Connect read-only via URI
-    uri = f"file:{db_path}?mode=ro"
-    conn = sqlite3.connect(uri, uri=True)
-    conn.row_factory = sqlite3.Row
-    return conn
+def get_db_engine(db_url: Optional[str] = None) -> Engine:
+    """Create a database engine for monitoring queries."""
+    return get_engine(db_url)
 
 
 # ============================================================================
@@ -90,7 +85,7 @@ def get_db_connection(db_path: Path) -> sqlite3.Connection:
 # ============================================================================
 
 def load_predictions_log(
-    conn: sqlite3.Connection,
+    conn: Connection,
     start_date: datetime,
     end_date: datetime,
 ) -> pd.DataFrame:
@@ -105,13 +100,15 @@ def load_predictions_log(
     Returns:
         DataFrame with columns from predictions_log table, timestamp as datetime.
     """
-    query = """
+    query = text(
+        """
         SELECT *
         FROM predictions_log
-        WHERE timestamp >= ? AND timestamp < ?
+        WHERE timestamp >= :start_date AND timestamp < :end_date
         ORDER BY timestamp ASC
-    """
-    params = (start_date.isoformat(), end_date.isoformat())
+        """
+    )
+    params = {"start_date": start_date.isoformat(), "end_date": end_date.isoformat()}
 
     df = pd.read_sql_query(query, conn, params=params)
     if not df.empty:
@@ -120,7 +117,7 @@ def load_predictions_log(
 
 
 def load_alerts_log(
-    conn: sqlite3.Connection,
+    conn: Connection,
     start_date: datetime,
     end_date: datetime,
 ) -> pd.DataFrame:
@@ -135,13 +132,15 @@ def load_alerts_log(
     Returns:
         DataFrame with columns from anomaly_alerts table.
     """
-    query = """
+    query = text(
+        """
         SELECT *
         FROM anomaly_alerts
-        WHERE alert_timestamp >= ? AND alert_timestamp < ?
+        WHERE alert_timestamp >= :start_date AND alert_timestamp < :end_date
         ORDER BY alert_timestamp ASC
-    """
-    params = (start_date.isoformat(), end_date.isoformat())
+        """
+    )
+    params = {"start_date": start_date.isoformat(), "end_date": end_date.isoformat()}
 
     df = pd.read_sql_query(query, conn, params=params)
     if not df.empty:
@@ -624,10 +623,9 @@ def run_daily_monitoring(
     thresholds = MonitoringThresholds(**thresholds_data)
 
     # Resolve paths
-    if db_path is None:
-        db_path = Path(config.get("database", {}).get("path", str(DEFAULT_DB_PATH)))
-        if not db_path.is_absolute():
-            db_path = PROJECT_ROOT / db_path
+    db_url = config.get("database", {}).get("url")
+    if db_path is not None:
+        db_url = str(db_path)
 
     if output_dir is None:
         output_dir = DEFAULT_OUTPUT_DIR
@@ -652,31 +650,32 @@ def run_daily_monitoring(
     logger.info("=" * 60)
 
     # Connect to database
-    conn = get_db_connection(db_path)
+    engine = get_db_engine(db_url)
 
     # Load data windows
     logger.info("Loading predictions log...")
-    predictions_24h = load_predictions_log(conn, report_start_24h, report_end)
-    predictions_7d = load_predictions_log(conn, report_start_7d, report_end)
-    alerts_24h = load_alerts_log(conn, report_start_24h, report_end)
+    with engine.connect() as conn:
+        predictions_24h = load_predictions_log(conn, report_start_24h, report_end)
+        predictions_7d = load_predictions_log(conn, report_start_7d, report_end)
+        alerts_24h = load_alerts_log(conn, report_start_24h, report_end)
 
-    # Load historical alert rates for sustained check (previous 2 days)
-    prev_3d_start = report_end - timedelta(days=4)
-    predictions_4d = load_predictions_log(conn, prev_3d_start, report_end)
-    previous_alert_rates: Dict[str, List[float]] = {}
+        # Load historical alert rates for sustained check (previous 2 days)
+        prev_3d_start = report_end - timedelta(days=4)
+        predictions_4d = load_predictions_log(conn, prev_3d_start, report_end)
+        previous_alert_rates: Dict[str, List[float]] = {}
 
-    if not predictions_4d.empty:
-        predictions_4d["date"] = predictions_4d["timestamp"].dt.date
-        for device_id, device_df in predictions_4d.groupby("device_id"):
-            daily_rates = []
-            for date_val in sorted(device_df["date"].unique()):
-                day_df = device_df[device_df["date"] == date_val]
-                if "alert_triggered" in day_df.columns:
-                    daily_rates.append(float(day_df["alert_triggered"].mean()))
-            # Keep only the 2 days before the report date
-            previous_alert_rates[device_id] = daily_rates[-3:-1] if len(daily_rates) >= 3 else daily_rates
-
-    conn.close()
+        if not predictions_4d.empty:
+            predictions_4d["date"] = predictions_4d["timestamp"].dt.date
+            for device_id, device_df in predictions_4d.groupby("device_id"):
+                daily_rates = []
+                for date_val in sorted(device_df["date"].unique()):
+                    day_df = device_df[device_df["date"] == date_val]
+                    if "alert_triggered" in day_df.columns:
+                        daily_rates.append(float(day_df["alert_triggered"].mean()))
+                # Keep only the 2 days before the report date
+                previous_alert_rates[device_id] = (
+                    daily_rates[-3:-1] if len(daily_rates) >= 3 else daily_rates
+                )
 
     # Load validation residuals for drift detection
     if validation_residuals_path is None:
@@ -836,7 +835,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--db-path",
         type=str,
         default=None,
-        help="Path to deployment database (overrides config)",
+        help="Database URL override (overrides config)",
     )
     parser.add_argument(
         "--output-dir",

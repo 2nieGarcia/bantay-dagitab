@@ -1,13 +1,13 @@
-# src/deployment/run.py
+# src/inference/run.py
 """
 Deployment module entry point.
 
 Usage:
     # Run the inference worker once (cron mode)
-    python -m src.deployment.run worker
+    python -m src.inference.run worker
 
     # Save a model
-    python -m src.deployment.run save-model --model-type lightgbm --model-path models/deployed/model.joblib
+    python -m src.inference.run save-model --model-type lightgbm --model-path models/deployed/model.joblib
 """
 
 from __future__ import annotations
@@ -15,8 +15,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from src.deployment.inference_worker import main as worker_main
-from src.deployment.model_serializer import main as serializer_main
+from src.inference.inference_worker import main as worker_main
+from src.inference.model_serializer import main as serializer_main
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

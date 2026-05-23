@@ -1,10 +1,18 @@
 from pathlib import Path
+
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
+
+import os
 
 PROJECT_ROOT = Path(r"D:\bantay-dagitab\ml")
 SYNTHETIC_DIR = PROJECT_ROOT / "data" / "synthetic" / "advanced" / "raw"
-DATABASE_URL = "postgresql://postgres:admin123@localhost:5433/bantay_dagitab"
+load_dotenv(PROJECT_ROOT / ".env")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres@localhost:5433/bantay_dagitab",
+)
 
 print(f"Looking in: {SYNTHETIC_DIR}")
 print(f"Exists: {SYNTHETIC_DIR.exists()}")

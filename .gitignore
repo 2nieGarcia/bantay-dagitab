@@ -74,3 +74,6 @@ credentials.json
 ml/data/
 ml/output/
 ml/models/
+
+# Supabase CLI
+ml/supabase/

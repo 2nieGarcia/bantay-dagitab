@@ -27,7 +27,7 @@ anomaly:
 
 inference:
   # How far back to look for new readings (minutes)
-  lookback_minutes: 10
+  lookback_minutes: 2000000
 
   # Batch size for processing
   batch_size: 1000
