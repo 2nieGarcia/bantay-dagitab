@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Engine, text
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DATABASE_URL = "postgresql://postgres:admin123@localhost:5433/bantay_dagitab"
+load_dotenv(PROJECT_ROOT / ".env")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres@localhost:5433/bantay_dagitab",
+)
 
 
 def get_engine(db_url: Optional[str] = None) -> Engine:
