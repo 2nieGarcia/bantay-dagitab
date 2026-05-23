@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
+from src.db import get_engine as _get_engine
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -16,8 +17,6 @@ RAW_IOT_PARQUET_DIR = PROJECT_ROOT / "data" / "raw" / "iot_parquet"
 CLEAN_DIR = PROJECT_ROOT / "data" / "clean"
 QUALITY_REPORT_DIR = CLEAN_DIR / "quality_reports"
 
-# PostgreSQL Configuration
-DB_URL = "postgresql://postgres:admin123@localhost:5433/bantay_dagitab"
 
 
 @dataclass
@@ -32,8 +31,8 @@ class QualityReport:
 
 
 def get_db_engine():
-    """Create PostgreSQL engine."""
-    return create_engine(DB_URL)
+    """Return project DB engine (reads DATABASE_URL from .env)."""
+    return _get_engine()
 
 
 def ensure_dirs() -> None:

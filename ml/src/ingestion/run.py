@@ -10,7 +10,8 @@ from typing import Iterable, List, Optional
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
+from src.db import get_engine as _get_engine
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -21,8 +22,6 @@ IOT_PARQUET_DIR = DATA_ROOT / "iot_parquet"
 IOT_ARCHIVE_DIR = DATA_ROOT / "iot_archive"
 OCR_PARQUET_DIR = DATA_ROOT / "ocr_parquet"
 
-# PostgreSQL Configuration
-DB_URL = "postgresql://postgres:admin123@localhost:5433/bantay_dagitab"
 
 
 class IoTReading(BaseModel):
@@ -45,8 +44,8 @@ def utc_now_iso() -> str:
 
 
 def get_db_engine():
-    """Create PostgreSQL engine."""
-    return create_engine(DB_URL)
+    """Return project DB engine (reads DATABASE_URL from .env)."""
+    return _get_engine()
 
 
 def ensure_dirs() -> None:

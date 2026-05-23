@@ -1,12 +1,11 @@
 from pathlib import Path
 import pandas as pd
-from sqlalchemy import create_engine
+from src.db import get_engine
 
 PROJECT_ROOT = Path(r"D:\bantay-dagitab\ml")
 SYNTHETIC_DIR = PROJECT_ROOT / "data" / "synthetic" / "baseline" / "raw"
-DATABASE_URL = "postgresql://postgres:admin123@localhost:5433/bantay_dagitab"
 
-engine = create_engine(DATABASE_URL)
+engine = get_engine()
 
 for parquet_path in sorted(SYNTHETIC_DIR.glob("meter_manila_*.parquet")):
     print(f"Loading {parquet_path.name}...")
