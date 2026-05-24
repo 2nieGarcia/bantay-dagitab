@@ -1,173 +1,100 @@
-# ML Service - Anomaly Detection & Chatbot
+# ML Service — FastAPI
 
-FastAPI-based machine learning service for anomaly detection and conversational AI.
+FastAPI service that will host Bantay-Dagitab's machine-learning
+workloads — anomaly detection (Contract C) and load forecasting — per
+paper §IV.C / Table IV.C.2.
+
+The chatbot is **not** in this service. Per paper §IV.B and §VII.A.4,
+the Django backend calls an external LLM API directly. Chatbot config
+lives in `backend/.env`, not here.
+
+Currently implemented:
+
+- **`GET /health`** — liveness probe.
+
+Planned (not yet implemented):
+
+- **`POST /anomaly/detect`** — Contract C anomaly detection (Isolation
+  Forest, Z-score) backed by scikit-learn.
+- **Forecasting endpoints** — baseline (persistence, historical median,
+  exponential smoothing) and advanced (Holt-Winters, LightGBM, LSTM)
+  forecasters per paper §A.3.
 
 ## Tech Stack
 
-- **Framework**: FastAPI
-- **ML Libraries**: scikit-learn, pandas, numpy
-- **Conversational AI**: Hugging Face Transformers
-- **API Documentation**: Auto-generated OpenAPI (Swagger UI at `/docs`)
+- **Framework:** FastAPI + Uvicorn
+- **Validation:** Pydantic v2
+- **Config:** `python-dotenv`
+
+When anomaly detection is implemented, the paper's Table IV.C.2 stack
+adds: `scikit-learn`, `pandas`, `numpy`, `statsmodels`, `lightgbm`,
+`pyarrow`, `pyYAML`.
 
 ## Project Structure
 
 ```
 ml/
 ├── app/
-│   ├── main.py              # FastAPI application
-│   ├── config.py            # Configuration
-│   ├── routers/
-│   │   ├── anomaly.py       # Anomaly detection endpoints
-│   │   └── chatbot.py       # Chatbot endpoints
-│   ├── services/
-│   │   ├── anomaly_detector.py
-│   │   └── chatbot_service.py
-│   ├── models/              # ML model artifacts
-│   │   └── .gitkeep
-│   └── schemas/
-│       ├── anomaly.py       # Pydantic models for Contract C
-│       └── chatbot.py       # Pydantic models for Contract D
+│   └── main.py            # FastAPI app + /health
 ├── requirements.txt
 ├── Dockerfile
+├── .env.example
 └── README.md
 ```
 
-## API Documentation
+## Quick Start
 
-Once running, access the interactive API docs at:
+### With Docker (from repo root)
 
-- **Swagger UI**: http://localhost:8001/docs
-- **ReDoc**: http://localhost:8001/redoc
-- **OpenAPI JSON**: http://localhost:8001/openapi.json
+```bash
+docker compose up ml
+```
 
-## Data Contracts
-
-This module implements:
-
-- **Contract C** (producing): Anomaly detection alerts
-- **Contract D** (producing): Chatbot responses
-
-See `/contracts/` for full schemas.
-
-## Development Setup
+Service is reachable at `http://localhost:8001`; FastAPI docs at
+`http://localhost:8001/docs`.
 
 ### Without Docker
 
 ```bash
 cd ml
-
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate     # Windows
-
-# Install dependencies
+source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 
-# Run development server
-uvicorn app.main:app --reload --port 8001
-```
+cp .env.example .env
 
-### With Docker
-
-```bash
-docker-compose up ml
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ## Environment Variables
 
-Create `.env` file:
+See `.env.example`.
 
-```env
-# API Settings
-API_HOST=0.0.0.0
-API_PORT=8001
-DEBUG=True
+| Variable          | Required | Example                | Notes                                              |
+|-------------------|----------|------------------------|----------------------------------------------------|
+| `DEBUG`           | No       | `True`                 | Sets log level to INFO                             |
+| `BACKEND_API_URL` | No       | `http://backend:8000/api` | Callback URL for pushing future anomaly results back |
 
-# Hugging Face
-HF_MODEL_NAME=microsoft/DialoGPT-medium
-HF_TOKEN=your_token_here  # Optional, for private models
+LLM provider config does **not** belong here — it lives in
+`backend/.env` because the chatbot lives in Django.
 
-# Backend API
-BACKEND_API_URL=http://localhost:8000/api
-```
+## Data Contracts
 
-## API Endpoints
+This service implements **Contract C** (anomaly alerts) when the
+detector is added. The canonical schemas live in `/contracts/`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/anomaly/detect` | Analyze reading and detect anomalies |
-| GET | `/anomaly/history/{user_id}` | Get anomaly history for user |
-| POST | `/chatbot/query` | Send query to chatbot (Contract D) |
-| GET | `/health` | Health check endpoint |
+## Integration
 
-## Anomaly Detection
-
-The anomaly detection module compares real-time IoT data against historical baselines:
-
-```python
-# Example algorithm options (TBD with ML lead):
-# - Isolation Forest
-# - Z-Score based detection
-# - LSTM Autoencoder
-# - Prophet for time-series
-```
-
-**Note**: Algorithm to be finalized in consultation with ML lead.
-
-## Chatbot Implementation
-
-Uses Hugging Face LLM with prompt engineering constrained to user's energy data:
-
-```python
-# Example prompt template
-SYSTEM_PROMPT = """
-You are an energy advisor for a Filipino household. 
-Based on the user's billing data and detected anomalies, 
-provide helpful explanations and energy-saving tips.
-Always respond in a friendly, helpful manner.
-Context: {context}
-"""
-```
-
-## Sample Request/Response
-
-### Anomaly Detection (Contract C)
-
-```bash
-curl -X POST http://localhost:8001/anomaly/detect \
-  -H "Content-Type: application/json" \
-  -d '{
-    "device_id": "meter_manila_001",
-    "user_account_id": "user_001",
-    "timestamp": "2024-03-01T14:15:00Z",
-    "avg_wattage": 450.5
-  }'
-```
-
-### Chatbot Query (Contract D)
-
-```bash
-curl -X POST http://localhost:8001/chatbot/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_account_id": "user_001",
-    "user_query": "Why is my bill higher this month?"
-  }'
-```
+This service runs on the `bantay-dagitab-network` Docker network and is
+reachable from the backend container at `http://ml:8001`. The Django
+backend currently does not call this service — that integration will
+appear when anomaly detection is built (Django will receive pushed
+alerts via the backend callback URL).
 
 ## Team Responsibilities
 
-- Anomaly detection algorithm selection and training
-- Chatbot prompt engineering
-- Model performance optimization
-- Implement Contracts C and D
-
-## TODO
-
-- [ ] Finalize anomaly detection algorithm with ML lead
-- [ ] Setup FastAPI project skeleton
-- [ ] Implement anomaly detection service
-- [ ] Integrate Hugging Face LLM for chatbot
-- [ ] Create synthetic training data
-- [ ] Setup model versioning
+- Anomaly detection (Contract C, Isolation Forest / Z-score) — *planned*
+- Load forecasting (baselines and advanced models per §A.3) — *planned*
+- Pydantic-validated request handling matching Contract schemas
+- Health endpoint for orchestration — *done*

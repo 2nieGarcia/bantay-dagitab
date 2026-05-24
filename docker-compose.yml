@@ -30,6 +30,13 @@ services:
       - SECRET_KEY=dev-secret-key-change-in-production
       - DATABASE_URL=postgres://postgres:postgres@db:5432/bantay_dagitab
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+    # Chatbot LLM provider (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL,
+    # LLM_TIMEOUT_SECONDS) is loaded from backend/.env per paper §IV.B.
+    # IMPORTANT: copy backend/.env.example to backend/.env before
+    # `docker compose up`. If LLM keys are blank, the chatbot returns
+    # its fallback response instead of failing.
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend:/app
       - ./contracts:/app/contracts:ro
@@ -42,7 +49,8 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
 
-  # FastAPI ML Service
+  # FastAPI ML Service (anomaly detection + forecasting per paper §IV.C).
+  # Does NOT host the chatbot — Django calls the external LLM API directly.
   ml:
     build:
       context: ./ml

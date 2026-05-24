@@ -69,3 +69,4 @@ secrets.json
 credentials.json
 
 .vscode/
+.claude/
