@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
+import type { ReactNode } from 'react';
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AppShell from "@/components/app-shell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,15 +22,16 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">{children}</body>
+      <body className="h-auto overflow-auto bg-slate-950">
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }
-
