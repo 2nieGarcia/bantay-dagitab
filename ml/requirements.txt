@@ -1,0 +1,9 @@
+# FastAPI ML Service Requirements
+# Currently only the /health endpoint; ML deps from paper §IV.C.2 (Table
+# IV.C.2) — scikit-learn, statsmodels, lightgbm, pyarrow, pyYAML — will
+# be added when anomaly detection / forecasting is implemented.
+
+fastapi>=0.109,<1.0
+uvicorn[standard]>=0.27,<1.0
+pydantic>=2.5,<3.0
+python-dotenv>=1.0,<2.0

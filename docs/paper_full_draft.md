@@ -488,10 +488,11 @@ consumption and the amount columns through SQL `CHECK` constraints
 
 **B.3 Chatbot interactions (Contract D → `chatbot_chatlog`).** When a
 user poses a question through the dashboard, the Django chatbot view
-assembles a context object from recent bills and anomaly alerts, forwards
-the user query plus context to the FastAPI machine learning service,
-persists the exchange into `chatbot_chatlog`, and returns the response to
-the client. Contract D governs the wire format; the persisted row
+assembles a context object from recent bills and anomaly alerts, calls
+an external LLM API directly (Groq cloud or Ollama local, both
+OpenAI-compatible), persists the exchange into `chatbot_chatlog`, and
+returns the response to the client. Contract D governs the logical
+shape of the exchange; the persisted row
 preserves the user query and the response verbatim for both auditability
 and longitudinal analysis of conversational patterns.
 
@@ -543,7 +544,8 @@ IV.C.1.
 | python-dotenv | `>=1.0,<2.0` | `.env` loading |
 | whitenoise | `>=6.12,<7.0` | Compressed static-file serving in production |
 | gunicorn | `>=21.0,<22.0` | Production WSGI server |
-| requests | `>=2.31,<3.0` | Outbound HTTP to the FastAPI ML service |
+| requests | `>=2.31,<3.0` | Outbound HTTP (LLM ingress, future ML callbacks) |
+| openai | `>=1.0,<2.0` | OpenAI-compatible LLM client for the chatbot (Groq / Ollama) |
 | pytesseract | `>=0.3,<1.0` | Python bindings to the Tesseract OCR engine |
 | opencv-python | `>=4.9,<5.0` | Bill image pre-processing |
 | Pillow | `>=10.0,<11.0` | Image I/O and transformation |
@@ -578,8 +580,9 @@ for image I/O. Tesseract was selected over cloud OCR services for cost,
 offline operation, and data residency consistent with Republic Act No.
 10173.
 
-**C.6 Machine learning and generative AI stack.** The FastAPI service
-declares its dependencies summarized in Table IV.C.2.
+**C.6 Machine learning stack.** The FastAPI service hosts anomaly
+detection and load forecasting (the chatbot is in the Django backend
+per §IV.B). Its dependencies are summarized in Table IV.C.2.
 
 **Table IV.C.2 — Machine learning service dependency stack**
 
@@ -587,19 +590,20 @@ declares its dependencies summarized in Table IV.C.2.
 |---|---|---|
 | fastapi | `>=0.109,<1.0` | Asynchronous Python web framework |
 | uvicorn[standard] | `>=0.27,<1.0` | ASGI server |
-| pydantic | `>=2.5,<3.0` | Request/response validation against Contracts C & D |
+| pydantic | `>=2.5,<3.0` | Request/response validation against Contract C |
 | scikit-learn | `>=1.4,<2.0` | Classical anomaly detection (Isolation Forest, Z-score) |
 | pandas | `>=2.2,<3.0` | Time-series manipulation of IoT readings |
 | numpy | `>=1.26,<2.0` | Numerical primitives |
-| transformers | `>=4.37,<5.0` | Hugging Face model loading for the chatbot |
-| torch | `>=2.1,<3.0` | Deep-learning runtime backing `transformers` |
-| httpx | `>=0.26,<1.0` | Outbound HTTP for cross-service queries |
-| python-multipart | `>=0.0.6,<1.0` | Multipart form parsing |
+| statsmodels | `>=0.14,<1.0` | Holt-Winters exponential smoothing forecasts |
+| lightgbm | `>=4.1,<5.0` | Gradient-boosted forecasting |
+| pyarrow | `>=12.0,<20.0` | Parquet I/O for feature / training data |
+| pyYAML | `>=6.0,<7.0` | Pipeline configuration files |
 
-FastAPI was chosen over hosting the ML logic inside Django because PyTorch
-model loads consume substantial process memory better isolated from the
-request-serving tier, and because FastAPI's asynchronous handlers match
-the LLM inference latency profile.
+FastAPI was chosen for the ML tier because forecasting and anomaly
+detection workloads benefit from isolation from the request-serving
+tier and FastAPI's asynchronous handlers match the long-running
+inference latency profile. The chatbot is hosted in the Django
+backend, which calls the external LLM API directly (§IV.B).
 
 **C.7 Frontend stack.** *Next.js 16.2* with the App Router, *React 19.2*,
 *Tailwind CSS 4.x*, and *TypeScript 5.x* compose the dashboard, declared
@@ -1085,11 +1089,11 @@ Three multi-step operations are explicitly wrapped in transactional
 scopes:
 
 - The **chatbot interaction** assembles context from `billing_bill` and
-  `analytics_anomalyalert`, invokes the FastAPI ML service, and persists
-  the exchange into `chatbot_chatlog`. The Django view wraps the entire
-  flow in `@transaction.atomic`, ensuring that a partial failure (for
-  example, the ML service times out after context assembly) does not
-  leave a phantom `ChatLog` row.
+  `analytics_anomalyalert`, calls an external LLM API directly, and
+  persists the exchange into `chatbot_chatlog`. The Django view wraps
+  the entire flow in `@transaction.atomic`, ensuring that a partial
+  failure (for example, the LLM provider times out after context
+  assembly) does not leave a phantom `ChatLog` row.
 - The **stored procedure** `sp_ingest_iot_reading` (§VI.C) performs an
   insert into `iot_monitoring_iotreading` and a conditional insert into
   `analytics_anomalyalert` within a single PL/pgSQL block; the block is
@@ -1228,10 +1232,10 @@ end-to-end behaviour of the database in operation:
 3. *Chatbot trace.* The authenticated frontend POSTs a query to
    `/api/chat/ask/`. The Django view, wrapped in `@transaction.atomic`,
    aggregates recent bills from `billing_bill` and recent alerts from
-   `analytics_anomalyalert` into a Contract D context block, forwards
-   the request to the FastAPI ML service, receives a natural-language
-   response, persists the user query and response into `chatbot_chatlog`,
-   and returns the response to the client.
+   `analytics_anomalyalert` into a Contract D context block, calls an
+   external LLM API (Groq or Ollama, OpenAI-compatible), receives a
+   natural-language response, persists the user query and response into
+   `chatbot_chatlog`, and returns the response to the client.
 
 ### B. Performance Testing
 

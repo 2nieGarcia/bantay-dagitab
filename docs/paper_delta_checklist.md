@@ -85,13 +85,18 @@ Everything below must exist in the repository for the paper to be truthful. Orga
 
 > ⚠ Paper-internal inconsistency: §IV.C still mentions "FastAPI isolates PyTorch memory from the request-serving tier." If the chatbot is external-API only, that line should be revised in the paper — PyTorch isn't in Table IV.C.2's ML deps either.
 
-### P2.4 Live chatbot integration (Django ↔ external LLM API)
+### P2.4 Live chatbot integration (Django ↔ external LLM API) ✅ DONE
 **Paper claim:** Chatbot view assembles context from recent bills/alerts via the Django ORM, calls an **external LLM API** (§IV.B, §VII.A.4), persists via `ChatLog.objects.create()`, all in `@transaction.atomic`.
-**Repo state:** `backend/chatbot/services.py` returns a mock string. View is **not** wrapped in `@transaction.atomic`.
-**Minimum fix:**
-- In `chatbot/services.py`, replace the mock with a call to your chosen LLM provider (Anthropic / OpenAI / etc.). Read provider config from env vars: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`.
-- Add the provider SDK to `backend/requirements.txt` (e.g., `anthropic>=0.39,<1.0` or `openai>=1.0,<2.0`).
-- In `chatbot/views.py`, wrap the body of `post()` in `with transaction.atomic():`. Add `from django.db import transaction`.
+**Repo state:** Implemented.
+- `backend/chatbot/services.py` — `LLMClient` calls an OpenAI-compatible endpoint (Groq cloud or Ollama local) directly via the `openai` SDK. Falls back gracefully (returns canned string, logs, never 500s) when env vars are missing or the LLM errors.
+- `backend/chatbot/views.py` — `ChatbotInteractionView.post` wraps context assembly + LLM call + persist in `with transaction.atomic():`. Context exceeds Contract D's required minimum: latest bill summary (`billing_period`, `total_kwh_consumed`, `total_bill_php`, `anomalies_flagged`) plus `recent_bills` (last 6), `recent_anomalies` (last 10 with timestamp + message), `today_kwh_so_far` (Django-side aggregate), and `latest_reading`.
+- `backend/chatbot/urls.py` — also adds `GET /api/chat/history/?limit=N` (default 50, max 200) so the future frontend widget can render conversation history.
+- `backend/chatbot/admin.py` — `ChatLog` registered with `list_display`, search, and filter.
+- `backend/requirements.txt` — `openai>=1.0,<2.0` pinned.
+- `backend/.env.example` — LLM provider recipes for Groq and Ollama documented.
+- See [chatbot_integration.md](chatbot_integration.md) for the full operational doc.
+
+**Paper-internal inconsistency resolved:** the §IV.C "PyTorch model loads…" line was an artifact of an earlier draft that put the chatbot inside FastAPI. The submitted PDF's Table IV.C.2 (statsmodels, lightgbm, pyarrow, pyYAML) is consistent with the external-LLM-from-Django architecture; the markdown working draft has been brought in line.
 
 ### P2.5 Frontend live REST integration
 **Paper claim:** Next.js dashboard renders four views "consuming the live REST surface" with monthly kWh from `vw_user_monthly_consumption`.
