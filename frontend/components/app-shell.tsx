@@ -1,16 +1,19 @@
 'use client';
 
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import WarningIcon from '@mui/icons-material/Warning';
 import TuneIcon from '@mui/icons-material/Tune';
-import ChatIcon from '@mui/icons-material/Chat';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import ChatPanel from '@/components/chat-panel';
 import { BillProvider } from '@/components/shared/bill-context';
+import { Brand } from '@/components/shared/brand';
 import type { Bill } from '@/components/shared/types';
+import { useLang } from '@/lib/i18n';
 
 const initialBills: Bill[] = [
   {
@@ -56,10 +59,10 @@ const initialBills: Bill[] = [
 ];
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', Icon: DashboardIcon },
-  { href: '/bills', label: 'Bills', Icon: CreditCardIcon },
-  { href: '/reports', label: 'Reports', Icon: WarningIcon },
-  { href: '/settings', label: 'Settings', Icon: TuneIcon },
+  { href: '/dashboard', labelKey: 'nav.dashboard', subKey: 'nav.dashboard.sub', Icon: DashboardIcon },
+  { href: '/bills', labelKey: 'nav.bills', subKey: 'nav.bills.sub', Icon: CreditCardIcon },
+  { href: '/reports', labelKey: 'nav.reports', subKey: 'nav.reports.sub', Icon: WarningIcon },
+  { href: '/settings', labelKey: 'nav.settings', subKey: 'nav.settings.sub', Icon: TuneIcon },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -67,78 +70,103 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [uploadedBills, setUploadedBills] = useState<Bill[]>(initialBills);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const showShell = !['/', '/login', '/register'].includes(pathname);
+  const { t } = useLang();
 
   return (
     <BillProvider value={{ uploadedBills, setUploadedBills }}>
-      <div className="min-h-screen text-slate-100 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        {showShell ? (
-          <div className="flex h-screen overflow-hidden">
-            <aside className="w-72 bg-slate-900/90 border-r border-slate-700/60 p-6 flex flex-col gap-6">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-cyan-300 font-semibold">Bantay Dagitab</p>
-              </div>
+      {showShell ? (
+        <div className="flex min-h-screen bg-page text-ink">
+          <aside className="hidden md:flex w-72 shrink-0 flex-col border-r border-line bg-surface">
+            <div className="px-6 pt-8 pb-7 border-b border-line">
+              <Brand size="md" />
+            </div>
 
-              <nav className="space-y-2 flex-1">
-                {navItems.map(({ href, label, Icon }) => {
-                  const isActive = pathname === href;
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                        isActive
-                          ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-500/30'
-                          : 'text-slate-300 hover:bg-slate-800/80 hover:text-slate-100'
-                      }`}>
-                      <Icon sx={{ fontSize: 20 }} />
-                      {label}
-                    </Link>
-                  );
-                })}
-              </nav>
+            <nav className="flex-1 px-3 py-4 space-y-0.5">
+              {navItems.map(({ href, labelKey, subKey, Icon }) => {
+                const isActive = pathname === href || pathname.startsWith(href + '/');
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex items-start gap-3 rounded-md px-3 py-2.5 transition-colors duration-150 ${
+                      isActive
+                        ? 'bg-accent-soft text-accent-strong'
+                        : 'text-ink-2 hover:bg-elevated hover:text-ink'
+                    }`}
+                  >
+                    <Icon sx={{ fontSize: 20, marginTop: '2px' }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium leading-tight">{t(labelKey)}</span>
+                      <span className={`block text-xs leading-tight mt-0.5 ${isActive ? 'text-accent' : 'text-ink-3'}`}>
+                        {t(subKey)}
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
 
-              <div className="space-y-4 rounded-3xl border border-slate-700/50 bg-slate-800/70 p-5">
-                <p className="text-sm font-semibold text-cyan-200">Connect IoT Device</p>
-                <p className="text-xs text-slate-400">Link your energy monitoring hardware for live analytics.</p>
-                <button className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-sky-400">
-                  Setup Device
-                </button>
-              </div>
-
-              <div className="rounded-3xl border border-slate-700/50 bg-slate-800/70 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-2xl bg-cyan-500/20 flex items-center justify-center text-cyan-200 font-bold">BD</div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">User Name</p>
-                    <p className="text-xs text-slate-400">Administrator</p>
-                  </div>
+            <div className="px-6 py-5 border-t border-line">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-ink text-ink-inverse flex items-center justify-center text-sm font-semibold font-display">
+                  JD
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">Juan Dela Cruz</p>
+                  <p className="text-xs text-ink-3 tabular">Acct ***3530</p>
                 </div>
               </div>
-            </aside>
-
-            <div className={`relative flex-1 overflow-hidden bg-slate-950 transition-all duration-300 ${isChatOpen ? 'mr-[384px]' : ''}`}>
-              <main className="h-full overflow-auto">{children}</main>
-
-              <button
-                type="button"
-                onClick={() => setIsChatOpen(prev => !prev)}
-                className={`fixed bottom-6 right-6 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800 border border-slate-600 text-slate-300 shadow-lg transition-transform duration-300 hover:text-white hover:border-slate-500 ${
-                  isChatOpen ? 'translate-x-[-28rem]' : ''
-                }`}>
-                <ChatIcon sx={{ fontSize: 28 }} />
-              </button>
-
-              <div className={`fixed top-0 right-0 z-30 h-full overflow-hidden bg-slate-950/95 shadow-2xl transition-all duration-300 ${
-                isChatOpen ? 'w-[384px]' : 'w-0'
-              }`}>
-                <ChatPanel onClose={() => setIsChatOpen(false)} />
-              </div>
             </div>
+          </aside>
+
+          <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-line bg-surface">
+            <ul className="grid grid-cols-4">
+              {navItems.map(({ href, labelKey, Icon }) => {
+                const isActive = pathname === href || pathname.startsWith(href + '/');
+                return (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className={`flex flex-col items-center gap-1 py-3 text-[11px] ${
+                        isActive ? 'text-accent-strong' : 'text-ink-3'
+                      }`}
+                    >
+                      <Icon sx={{ fontSize: 22 }} />
+                      <span>{t(labelKey)}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          <div className={`flex-1 min-w-0 transition-[margin] duration-300 ${isChatOpen ? 'lg:mr-100' : ''}`}>
+            <main className="pb-24 md:pb-12">{children}</main>
           </div>
-        ) : (
-          <main className="min-h-screen">{children}</main>
-        )}
-      </div>
+
+          <button
+            type="button"
+            onClick={() => setIsChatOpen(v => !v)}
+            aria-label={isChatOpen ? 'Close chat' : t('chat.title')}
+            className={`fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-ink shadow-sm hover:bg-elevated transition-colors duration-150 ${
+              isChatOpen ? 'lg:right-104' : ''
+            }`}
+          >
+            {isChatOpen ? <CloseIcon sx={{ fontSize: 18 }} /> : <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />}
+            <span>{isChatOpen ? 'Close' : t('chat.title')}</span>
+          </button>
+
+          <div
+            className={`fixed top-0 right-0 z-40 h-full overflow-hidden border-l border-line bg-surface shadow-lg transition-[width] duration-300 ${
+              isChatOpen ? 'w-full sm:w-100' : 'w-0'
+            }`}
+          >
+            {isChatOpen && <ChatPanel onClose={() => setIsChatOpen(false)} />}
+          </div>
+        </div>
+      ) : (
+        <main className="min-h-screen bg-page text-ink">{children}</main>
+      )}
     </BillProvider>
   );
 }
