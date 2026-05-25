@@ -1,161 +1,213 @@
 'use client';
 
-import { useState } from 'react';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import CircleNotificationsIcon from '@mui/icons-material/CircleNotifications';
-import SecurityIcon from '@mui/icons-material/Security';
-import FolderIcon from '@mui/icons-material/Folder';
-import DeviceHubIcon from '@mui/icons-material/DeviceHub';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { useLang, type Lang } from '@/lib/i18n';
+
+function SettingsSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="border border-line rounded-lg bg-surface overflow-hidden">
+      <header className="px-6 py-5 border-b border-line">
+        <h2 className="font-display text-lg text-ink leading-tight">{title}</h2>
+        {hint && <p className="text-sm text-ink-3 mt-1 leading-relaxed">{hint}</p>}
+      </header>
+      <div className="px-6 py-5">{children}</div>
+    </section>
+  );
+}
+
+function LanguageChoice({
+  value,
+  current,
+  label,
+  hint,
+  onSelect,
+}: {
+  value: Lang;
+  current: Lang;
+  label: string;
+  hint: string;
+  onSelect: (v: Lang) => void;
+}) {
+  const active = value === current;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className={`text-left rounded-md border px-4 py-4 transition-colors ${
+        active
+          ? 'border-accent bg-accent-soft'
+          : 'border-line hover:border-line-strong hover:bg-elevated'
+      }`}
+      aria-pressed={active}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className={`mt-1 inline-block h-4 w-4 rounded-full border-2 shrink-0 ${
+            active ? 'border-accent-strong bg-accent-strong' : 'border-line-strong'
+          }`}
+        >
+          {active && (
+            <span className="block h-1.5 w-1.5 rounded-full bg-accent-ink mx-auto mt-0.75" />
+          )}
+        </span>
+        <span className="flex-1">
+          <span className={`block font-medium ${active ? 'text-accent-strong' : 'text-ink'}`}>
+            {label}
+          </span>
+          <span className={`block text-xs mt-1 leading-relaxed ${active ? 'text-accent' : 'text-ink-3'}`}>
+            {hint}
+          </span>
+        </span>
+      </div>
+    </button>
+  );
+}
 
 export default function SettingsContent() {
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const { t, lang, setLang } = useLang();
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-      <p className="text-slate-400 text-sm mb-8">Manage your account and preferences</p>
+    <div className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mb-10">
+        <h1 className="font-display text-4xl text-ink tracking-tight">{t('settings.title')}</h1>
+        <p className="text-sm text-ink-2 mt-2 leading-relaxed">{t('settings.lede')}</p>
+      </div>
 
-      <div className="max-w-2xl space-y-3">
-        <div className="bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl border border-slate-600/50 overflow-hidden shadow-xl hover:shadow-2xl hover:border-slate-500/70 transition-all duration-300">
-          <button
-            type="button"
-            onClick={() => setExpandedSection(expandedSection === 'account' ? null : 'account')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <AccountCircleIcon sx={{ fontSize: 28, color: '#ffffff' }} />
-              <div className="text-left">
-                <h2 className="font-semibold text-white">Account Settings</h2>
-                <p className="text-sm text-slate-400">Manage your account preferences and profile</p>
-              </div>
-            </div>
-            <span className={`transition-transform text-slate-400 duration-300 ${expandedSection === 'account' ? 'rotate-180' : ''}`}>▼</span>
-          </button>
-          {expandedSection === 'account' && (
-            <div className="px-6 py-4 border-t border-slate-600/50 space-y-4 bg-slate-800/20">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Profile Information</label>
-                <p className="text-sm text-slate-400">Update your personal details</p>
-              </div>
-              <button className="text-right text-cyan-300 font-medium text-sm hover:text-cyan-200 transition-colors">Edit</button>
-            </div>
-          )}
-        </div>
+      <div className="space-y-5">
+        <SettingsSection
+          title={t('settings.section.language')}
+          hint={t('settings.section.languageSub')}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <LanguageChoice
+              value="en"
+              current={lang}
+              label={t('settings.language.english')}
+              hint={t('settings.language.englishHint')}
+              onSelect={setLang}
+            />
+            <LanguageChoice
+              value="fil"
+              current={lang}
+              label={t('settings.language.filipino')}
+              hint={t('settings.language.filipinoHint')}
+              onSelect={setLang}
+            />
+          </div>
+        </SettingsSection>
 
-        <div className="bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl border border-slate-600/50 mb-3 overflow-hidden shadow-xl hover:shadow-2xl hover:border-slate-500/70 transition-all duration-300">
-          <button
-            type="button"
-            onClick={() => setExpandedSection(expandedSection === 'notifications' ? null : 'notifications')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <CircleNotificationsIcon sx={{ fontSize: 28, color: '#ffffff' }} />
-              <div className="text-left">
-                <h2 className="font-semibold text-white">Notifications</h2>
-                <p className="text-sm text-slate-400">Configure alert preferences</p>
-              </div>
+        <SettingsSection
+          title={t('settings.section.account')}
+          hint={t('settings.section.accountSub')}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-ink">{t('settings.account.profile')}</p>
+              <p className="text-sm text-ink-3 mt-1">{t('settings.account.profileBody')}</p>
             </div>
-            <span className={`transition-transform text-slate-400 duration-300 ${expandedSection === 'notifications' ? 'rotate-180' : ''}`}>▼</span>
-          </button>
-          {expandedSection === 'notifications' && (
-            <div className="px-6 py-4 border-t border-slate-600/50 space-y-4 bg-slate-800/20">
-              <label className="flex items-center gap-3">
-                <input type="checkbox" defaultChecked className="w-4 h-4 accent-cyan-500" />
-                <span className="text-sm text-white">Email alerts for anomalies</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="checkbox" defaultChecked className="w-4 h-4 accent-cyan-500" />
-                <span className="text-sm text-white">Weekly consumption report</span>
-              </label>
-              <button className="text-right text-cyan-300 font-medium text-sm hover:text-cyan-200 transition-colors">Manage</button>
-            </div>
-          )}
-        </div>
+            <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
+              {t('settings.account.editProfile')}
+            </button>
+          </div>
+        </SettingsSection>
 
-        <div className="bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl border border-slate-600/50 mb-3 overflow-hidden shadow-xl hover:shadow-2xl hover:border-slate-500/70 transition-all duration-300">
-          <button
-            type="button"
-            onClick={() => setExpandedSection(expandedSection === 'security' ? null : 'security')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <SecurityIcon sx={{ fontSize: 28, color: '#ffffff' }} />
-              <div className="text-left">
-                <h2 className="font-semibold text-white">Security</h2>
-                <p className="text-sm text-slate-400">Password and authentication</p>
-              </div>
-            </div>
-            <span className={`transition-transform text-slate-400 duration-300 ${expandedSection === 'security' ? 'rotate-180' : ''}`}>▼</span>
-          </button>
-          {expandedSection === 'security' && (
-            <div className="px-6 py-4 border-t border-slate-600/50 space-y-3 bg-slate-800/20">
-              <button className="w-full text-left p-3 bg-slate-700/40 rounded-lg hover:bg-slate-700/60 transition-colors duration-200 border border-slate-600/30 hover:border-slate-500/50 flex items-center justify-between">
-                <span className="text-sm font-medium text-white">Change Password</span>
-                <span className="text-slate-400">→</span>
+        <SettingsSection
+          title={t('settings.section.notifications')}
+          hint={t('settings.section.notificationsSub')}
+        >
+          <ul className="divide-y divide-line">
+            <li className="py-3 flex items-center justify-between gap-4">
+              <span className="text-sm text-ink">{t('settings.notifications.emailAlerts')}</span>
+              <input
+                type="checkbox"
+                defaultChecked
+                className="h-4 w-4 rounded border-line-strong accent-(--color-accent)"
+              />
+            </li>
+            <li className="py-3 flex items-center justify-between gap-4">
+              <span className="text-sm text-ink">{t('settings.notifications.weeklyReport')}</span>
+              <input
+                type="checkbox"
+                defaultChecked
+                className="h-4 w-4 rounded border-line-strong accent-(--color-accent)"
+              />
+            </li>
+          </ul>
+        </SettingsSection>
+
+        <SettingsSection
+          title={t('settings.section.security')}
+          hint={t('settings.section.securitySub')}
+        >
+          <ul className="divide-y divide-line">
+            <li className="py-3 flex items-center justify-between gap-4">
+              <span className="text-sm font-medium text-ink">{t('settings.security.changePassword')}</span>
+              <button className="text-sm text-accent hover:text-accent-strong font-medium">
+                {t('common.edit')} &rarr;
               </button>
-              <button className="w-full text-left p-3 bg-slate-700/40 rounded-lg hover:bg-slate-700/60 transition-colors duration-200 border border-slate-600/30 hover:border-slate-500/50 flex items-center justify-between">
-                <span className="text-sm font-medium text-white">Two-Factor Authentication</span>
-                <span className="text-xs text-red-300 font-medium">Disabled</span>
+            </li>
+            <li className="py-3 flex items-center justify-between gap-4">
+              <span className="text-sm font-medium text-ink">{t('settings.security.twoFactor')}</span>
+              <span className="inline-flex items-center gap-2 text-xs">
+                <span className="inline-block h-2 w-2 rounded-full bg-signal" />
+                <span className="text-ink-3">{t('settings.security.twoFactorOff')}</span>
+              </span>
+            </li>
+          </ul>
+        </SettingsSection>
+
+        <SettingsSection
+          title={t('settings.section.iot')}
+          hint={t('settings.section.iotSub')}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-ink">{t('settings.iot.noneTitle')}</p>
+              <p className="text-sm text-ink-3 mt-1 max-w-md leading-relaxed">
+                {t('settings.iot.noneBody')}
+              </p>
+            </div>
+            <button className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors">
+              {t('settings.iot.add')}
+            </button>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.section.data')} hint={t('settings.section.dataSub')}>
+          <ul className="divide-y divide-line">
+            <li className="py-3 flex items-center justify-between gap-4">
+              <span className="text-sm text-ink">{t('settings.data.export')}</span>
+              <button className="text-sm text-accent hover:text-accent-strong font-medium">
+                {t('common.edit')} &rarr;
               </button>
-            </div>
-          )}
-        </div>
+            </li>
+            <li className="py-3 flex items-center justify-between gap-4">
+              <span className="text-sm text-signal-strong">{t('settings.data.delete')}</span>
+              <button className="text-sm text-signal-strong hover:text-signal font-medium">
+                {t('common.delete')} &rarr;
+              </button>
+            </li>
+          </ul>
+        </SettingsSection>
 
-        <div className="bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl border border-slate-600/50 mb-3 overflow-hidden shadow-xl hover:shadow-2xl hover:border-slate-500/70 transition-all duration-300">
-          <button
-            type="button"
-            onClick={() => setExpandedSection(expandedSection === 'data' ? null : 'data')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <FolderIcon sx={{ fontSize: 28, color: '#ffffff' }} />
-              <div className="text-left">
-                <h2 className="font-semibold text-white">Data Management</h2>
-                <p className="text-sm text-slate-400">Export or delete your data</p>
-              </div>
-            </div>
-            <span className={`transition-transform text-slate-400 duration-300 ${expandedSection === 'data' ? 'rotate-180' : ''}`}>▼</span>
+        <SettingsSection
+          title={t('settings.section.signOut')}
+          hint={t('settings.section.signOutSub')}
+        >
+          <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
+            <LogoutIcon sx={{ fontSize: 18 }} />
+            {t('settings.signOut.cta')}
           </button>
-          {expandedSection === 'data' && (
-            <div className="px-6 py-4 border-t border-slate-600/50 space-y-3 bg-slate-800/20">
-              <button className="w-full text-left p-3 bg-slate-700/40 rounded-lg hover:bg-slate-700/60 transition-colors duration-200 border border-slate-600/30 hover:border-slate-500/50 text-sm font-medium text-white">Export My Data</button>
-              <button className="w-full text-left p-3 bg-red-500/15 rounded-lg hover:bg-red-500/25 transition-colors duration-200 text-sm font-medium text-red-300 border border-red-500/30 hover:border-red-500/50">Delete All Data</button>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl border border-slate-600/50 mb-3 overflow-hidden shadow-xl hover:shadow-2xl hover:border-slate-500/70 transition-all duration-300">
-          <button
-            type="button"
-            onClick={() => setExpandedSection(expandedSection === 'iot' ? null : 'iot')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <DeviceHubIcon sx={{ fontSize: 28, color: '#ffffff' }} />
-              <div className="text-left">
-                <h2 className="font-semibold text-white">IoT Device Settings</h2>
-                <p className="text-sm text-slate-400">Manage connected hardware devices</p>
-              </div>
-            </div>
-            <span className={`transition-transform text-slate-400 duration-300 ${expandedSection === 'iot' ? 'rotate-180' : ''}`}>▼</span>
-          </button>
-          {expandedSection === 'iot' && (
-            <div className="px-6 py-4 border-t border-slate-600/50 bg-slate-800/20">
-              <p className="text-sm text-slate-300 mb-4">No IoT devices connected. Connect your energy monitoring hardware to start tracking real-time data.</p>
-              <button className="w-full bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-white py-2 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50">+ Add Device</button>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gradient-to-br from-red-500/15 to-red-500/5 backdrop-blur-sm rounded-2xl border border-red-500/30 p-6 shadow-xl hover:shadow-2xl hover:border-red-500/50 transition-all duration-300">
-          <h2 className="font-semibold text-red-200 mb-2">Logout</h2>
-          <p className="text-sm text-red-100/70 mb-4">Sign out of your Bantay Dagitab account</p>
-          <button className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg shadow-red-600/30 hover:shadow-red-600/50">
-            <LogoutIcon sx={{ fontSize: 20 }} />
-            Logout
-          </button>
-        </div>
+        </SettingsSection>
       </div>
     </div>
   );

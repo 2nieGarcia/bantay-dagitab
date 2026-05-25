@@ -1,60 +1,125 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --accent: #0ea5e9;
-  --accent-light: #06b6d4;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-page: oklch(0.965 0.014 75);
+  --color-surface: oklch(0.99 0.006 75);
+  --color-elevated: oklch(0.93 0.018 70);
+  --color-sunken: oklch(0.89 0.022 68);
+  --color-hero: oklch(0.92 0.024 72);
+
+  --color-ink: oklch(0.20 0.018 248);
+  --color-ink-2: oklch(0.40 0.020 245);
+  --color-ink-3: oklch(0.58 0.014 245);
+  --color-ink-warm: oklch(0.32 0.04 60);
+  --color-ink-inverse: oklch(0.985 0.005 75);
+
+  --color-line: oklch(0.87 0.013 72);
+  --color-line-strong: oklch(0.78 0.016 68);
+
+  --color-accent: oklch(0.40 0.13 245);
+  --color-accent-strong: oklch(0.32 0.14 245);
+  --color-accent-soft: oklch(0.93 0.028 245);
+  --color-accent-ink: oklch(0.985 0.005 75);
+
+  --color-ember: oklch(0.50 0.13 50);
+  --color-ember-soft: oklch(0.94 0.038 60);
+
+  --color-signal: oklch(0.58 0.16 35);
+  --color-signal-strong: oklch(0.46 0.17 32);
+  --color-signal-soft: oklch(0.94 0.045 50);
+
+  --color-success: oklch(0.52 0.11 148);
+  --color-success-soft: oklch(0.93 0.04 148);
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-fraunces);
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.65rem;
+  --text-3xl: 2rem;
+  --text-4xl: 2.5rem;
+  --text-5xl: 3.25rem;
+  --text-6xl: 4.25rem;
+  --text-7xl: 5.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --accent: #0ea5e9;
-    --accent-light: #06b6d4;
-  }
+:root {
+  color-scheme: light;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+html, body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  text-rendering: optimizeLegibility;
 }
 
-/* Smooth scrollbar */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  font-feature-settings: "ss01", "ss03";
+  letter-spacing: -0.015em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.lining {
+  font-variant-numeric: lining-nums;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.5);
-  border-radius: 4px;
+  background: oklch(0.83 0.012 70);
+  border-radius: 999px;
+  border: 2px solid var(--color-page);
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background: oklch(0.72 0.014 65);
 }
 
-/* Pulse animation */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+::selection {
+  background: oklch(0.83 0.07 245);
+  color: var(--color-ink);
+}
+
+input, textarea, select, button {
+  font: inherit;
+  color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: oklch(0.66 0.012 240);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
-  50% {
-    opacity: 0.5;
-  }
+}
+
+/* A subtle paper grain for hero surfaces — civic, not crypto. */
+.paper-grain {
+  background-image:
+    radial-gradient(oklch(0.50 0.02 70 / 0.04) 1px, transparent 1px),
+    radial-gradient(oklch(0.50 0.02 70 / 0.03) 1px, transparent 1px);
+  background-size: 22px 22px, 13px 13px;
+  background-position: 0 0, 6px 9px;
 }

@@ -1,29 +1,47 @@
 'use client';
 
-import { keyframes } from '@emotion/react';
-import WarningIcon from '@mui/icons-material/Warning';
 import ComputerIcon from '@mui/icons-material/Computer';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import ThermostatIcon from '@mui/icons-material/Thermostat';
 import PowerIcon from '@mui/icons-material/Power';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AcUnitIcon from '@mui/icons-material/AcUnit';
+import KitchenIcon from '@mui/icons-material/Kitchen';
+import Link from 'next/link';
+import { useLang } from '@/lib/i18n';
 
-const pulseAnimation = keyframes`
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-`;
-
-const deviceColorMap: Record<string, string> = {
-  cyan: 'text-cyan-400',
-  orange: 'text-orange-400',
-  purple: 'text-purple-400',
-  emerald: 'text-emerald-400',
-  yellow: 'text-yellow-400',
+type Anomaly = {
+  id: string;
+  deviceKey: string;
+  findingKey: string;
+  extraPeso: number;
 };
+
+const anomalies: Anomaly[] = [
+  { id: 'a1', deviceKey: 'dashboard.anomaly1.device', findingKey: 'dashboard.anomaly1.finding', extraPeso: 340 },
+  { id: 'a2', deviceKey: 'dashboard.anomaly2.device', findingKey: 'dashboard.anomaly2.finding', extraPeso: 215 },
+  { id: 'a3', deviceKey: 'dashboard.anomaly3.device', findingKey: 'dashboard.anomaly3.finding', extraPeso: 95 },
+];
+
+const devices = [
+  { nameKey: 'dashboard.device.fridge', noteKey: 'dashboard.device.fridgeNote', kwh: 78, peso: 1090, Icon: KitchenIcon },
+  { nameKey: 'dashboard.device.aircon', noteKey: 'dashboard.device.airconNote', kwh: 62, peso: 870, Icon: AcUnitIcon },
+  { nameKey: 'dashboard.device.heat', noteKey: 'dashboard.device.heatNote', kwh: 38, peso: 530, Icon: LocalFireDepartmentIcon },
+  { nameKey: 'dashboard.device.electronics', noteKey: 'dashboard.device.electronicsNote', kwh: 32, peso: 445, Icon: ComputerIcon },
+  { nameKey: 'dashboard.device.other', noteKey: 'dashboard.device.otherNote', kwh: 24, peso: 335, Icon: PowerIcon },
+];
+
+const totalKwh = devices.reduce((s, d) => s + d.kwh, 0);
+
+const weekly = [
+  { day: 'Mon', kwh: 7.8 },
+  { day: 'Tue', kwh: 8.4 },
+  { day: 'Wed', kwh: 7.2 },
+  { day: 'Thu', kwh: 9.1 },
+  { day: 'Fri', kwh: 11.4 },
+  { day: 'Sat', kwh: 12.6 },
+  { day: 'Sun', kwh: 10.2 },
+];
+const maxKwh = Math.max(...weekly.map(d => d.kwh));
 
 export default function DashboardContent({
   userName,
@@ -32,179 +50,190 @@ export default function DashboardContent({
   userName: string;
   userAccount: string;
 }) {
+  const { t } = useLang();
+  const ctx = t('dashboard.projectionContext', { amount: '__SIGNAL__' });
+  const [ctxBefore, ctxAfter] = ctx.split('__SIGNAL__');
+
   return (
-    <div className="p-8">
-      <div className="mb-12">
-        <h1 className="text-4xl font-semibold text-white mb-2">Welcome back, {userName}</h1>
-        <p className="text-slate-400 text-sm">{userAccount}</p>
-        <p className="text-slate-500 text-xs mt-4">Energy Monitoring Dashboard</p>
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-12">
+        <div>
+          <p className="text-sm text-ink-2 font-medium">{t('dashboard.greeting', { name: userName })}</p>
+          <p className="text-xs text-ink-3 mt-1 tabular">
+            {t('dashboard.meta', { account: userAccount })}
+          </p>
+        </div>
+        <div className="inline-flex items-center gap-0.5 rounded-md border border-line bg-surface p-1 text-xs">
+          <button className="px-3 py-1.5 rounded text-ink font-medium bg-elevated">
+            {t('dashboard.range.month')}
+          </button>
+          <button className="px-3 py-1.5 rounded text-ink-3 hover:text-ink-2 transition-colors">
+            {t('dashboard.range.week')}
+          </button>
+          <button className="px-3 py-1.5 rounded text-ink-3 hover:text-ink-2 transition-colors">
+            {t('dashboard.range.day')}
+          </button>
+        </div>
       </div>
 
-      <div className="mb-8 bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-2xl p-6 shadow-lg shadow-red-500/20">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <WarningIcon sx={{ fontSize: 32, color: '#fca5a5', animation: `${pulseAnimation} 2s cubic-bezier(0.4, 0, 0.6, 1) infinite` }} />
+      <section className="bg-hero rounded-lg border border-line paper-grain px-8 py-10 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-x-12 gap-y-8 items-end">
+          <div className="md:col-span-8">
+            <p className="text-xs uppercase tracking-[0.18em] font-medium text-ember mb-3">
+              {t('dashboard.projectionLabel')}
+            </p>
+            <p className="font-display text-7xl md:text-8xl text-ink tracking-tight tabular leading-none">
+              <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal">₱</span>
+              2,847
+            </p>
+            <p className="text-base md:text-lg text-ink-2 mt-6 max-w-xl leading-relaxed">
+              {ctxBefore}
+              <span className="font-semibold text-signal-strong tabular">₱430</span>
+              {ctxAfter}
+            </p>
+          </div>
+
+          <div className="md:col-span-4 grid grid-cols-3 md:grid-cols-1 gap-5 md:gap-6 md:border-l md:border-line-strong md:pl-10">
             <div>
-              <h3 className="text-lg font-semibold text-red-200 mb-2">3 Active Anomalies Detected</h3>
-              <p className="text-sm text-red-100 mb-3">Your energy consumption shows unusual patterns. Review them to avoid unexpected charges.</p>
-              <button className="inline-block bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-red-500/30 hover:shadow-red-500/50">
-                View Anomalies →
-              </button>
+              <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+                {t('dashboard.statConsumption')}
+              </p>
+              <p className="font-display text-2xl text-ink mt-1.5 tabular leading-none">
+                {totalKwh} <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+                {t('dashboard.statDaily')}
+              </p>
+              <p className="font-display text-2xl text-ink mt-1.5 tabular leading-none">
+                9.3 <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+                {t('dashboard.statRate')}
+              </p>
+              <p className="font-display text-2xl text-ink mt-1.5 tabular leading-none">
+                <span className="text-ink-3 text-base font-sans font-normal">₱</span>12.16
+              </p>
             </div>
           </div>
-          <button className="text-red-300 hover:text-red-200 text-2xl">×</button>
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-4 gap-6" style={{ gridAutoRows: 'auto' }}>
-        <div className="col-span-1 row-span-2 bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-slate-600/50 hover:border-slate-500/70 hover:shadow-2xl transition-all duration-300">
-          <h2 className="text-lg font-semibold text-white mb-6">Energy Consumption</h2>
-          <input type="date" defaultValue="2026-04-22" className="w-full px-4 py-2 bg-slate-600/50 border border-slate-500 rounded-lg text-sm text-white mb-6" />
-
-          <div className="flex justify-center mb-8">
-            <svg viewBox="0 0 120 120" className="w-32 h-32">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="#94a3b8" strokeWidth="3" opacity="0.3" />
-              <circle cx="60" cy="60" r="50" fill="none" stroke="url(#grad)" strokeWidth="3" strokeDasharray="132.8 314" strokeLinecap="round" transform="rotate(-90 60 60)" />
-              <defs>
-                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#06b6d4" />
-                  <stop offset="100%" stopColor="#3b82f6" />
-                </linearGradient>
-              </defs>
-              <text x="60" y="65" textAnchor="middle" fontSize="24" fontWeight="bold" fill="white">11kWh</text>
-              <text x="60" y="80" textAnchor="middle" fontSize="12" fill="#cbd5e1">This month</text>
-            </svg>
+      <section className="mb-12">
+        <div className="flex items-baseline justify-between mb-6">
+          <div>
+            <h2 className="font-display text-2xl text-ink tracking-tight">
+              {t('dashboard.anomaliesTitle')}
+            </h2>
+            <p className="text-sm text-ink-3 mt-1">{t('dashboard.anomaliesSub')}</p>
           </div>
+          <Link href="/reports" className="text-sm text-accent hover:text-accent-strong font-medium">
+            {t('common.viewAll')} &rarr;
+          </Link>
+        </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-semibold text-slate-400 px-2">
-              <span>Time</span>
-              <span>Consumption (kWh)</span>
-            </div>
-            {[
-              { time: '00:00', val: '0.23', trend: 'up', pct: '1%', color: 'emerald' },
-              { time: '02:00', val: '0.25', trend: 'up', pct: '8%', color: 'emerald' },
-              { time: '04:00', val: '0.28', trend: 'down', pct: '12%', color: 'red' },
-              { time: '06:00', val: '3.22', trend: 'up', pct: '15%', color: 'emerald' },
-              { time: '08:00', val: '1.18', trend: 'down', pct: '10%', color: 'red' },
-              { time: '10:00', val: '1.73', trend: 'up', pct: '13%', color: 'emerald' },
-              { time: '12:00', val: '1.63', trend: 'down', pct: '5%', color: 'red' },
-            ].map(item => (
-              <div key={item.time} className="flex justify-between items-center px-2 py-1.5 hover:bg-slate-600/30 rounded text-sm">
-                <span className="text-slate-400">{item.time}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-medium">{item.val}</span>
-                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
-                    item.color === 'emerald'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                  }`}>
-                    <span>{item.trend === 'up' ? '↑' : '↓'}</span>
-                    <span>{item.pct}</span>
+        <ul className="divide-y divide-line border-y border-line">
+          {anomalies.map(a => (
+            <li key={a.id} className="py-5 flex gap-5 items-start">
+              <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-signal-soft text-signal-strong text-sm font-semibold">
+                !
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-ink">{t(a.deviceKey)}</p>
+                <p className="text-sm text-ink-2 mt-1 leading-relaxed">{t(a.findingKey)}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xs text-ink-3">{t('dashboard.extraOnBill')}</p>
+                <p className="font-display text-xl text-signal-strong tabular mt-0.5 leading-none">
+                  +₱{a.extraPeso}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-12 mb-12 pb-12 border-b border-line">
+        <div className="lg:col-span-7">
+          <h2 className="font-display text-2xl text-ink tracking-tight mb-1">
+            {t('dashboard.weeklyTitle')}
+          </h2>
+          <p className="text-sm text-ink-3 mb-8">{t('dashboard.weeklySub')}</p>
+
+          <div className="h-56 flex items-end justify-between gap-3">
+            {weekly.map(d => {
+              const heightPct = (d.kwh / maxKwh) * 100;
+              const isPeak = d.kwh === maxKwh;
+              return (
+                <div key={d.day} className="flex-1 flex flex-col items-center gap-2 min-w-0">
+                  <span className={`text-xs tabular ${isPeak ? 'text-ember font-semibold' : 'text-ink-2'}`}>
+                    {d.kwh.toFixed(1)}
                   </span>
+                  <div className="w-full bg-elevated rounded-sm relative" style={{ height: '180px' }}>
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 rounded-sm transition-[height] duration-300 ${
+                        isPeak ? 'bg-ember' : 'bg-accent'
+                      }`}
+                      style={{ height: `${heightPct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-ink-3">{d.day}</span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        <div className="col-span-1 bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-slate-600/50 hover:border-slate-500/70 hover:shadow-2xl transition-all duration-300">
-          <p className="text-sm text-slate-400 mb-3">Total kWh</p>
-          <p className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">22kWh</p>
-          <p className="text-sm text-slate-500 mt-2">This month</p>
+        <div className="lg:col-span-5 lg:pl-12 lg:border-l lg:border-line">
+          <h2 className="font-display text-2xl text-ink tracking-tight mb-1">
+            {t('dashboard.breakdownTitle')}
+          </h2>
+          <p className="text-sm text-ink-3 mb-6">{t('dashboard.breakdownSub')}</p>
+
+          <ul className="space-y-4">
+            {devices.map(d => {
+              const pct = (d.kwh / totalKwh) * 100;
+              return (
+                <li key={d.nameKey}>
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <d.Icon sx={{ fontSize: 18, color: 'var(--color-ink-3)' }} />
+                    <span className="text-sm font-medium text-ink flex-1 min-w-0 truncate">
+                      {t(d.nameKey)}
+                    </span>
+                    <span className="text-sm font-semibold text-ink tabular">₱{d.peso}</span>
+                  </div>
+                  <div className="flex items-center gap-3 pl-7">
+                    <div className="flex-1 h-1 bg-elevated rounded-full overflow-hidden">
+                      <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-xs text-ink-3 tabular w-20 text-right">
+                      {d.kwh} kWh
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
+      </section>
 
-        <div className="col-span-1 bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-slate-600/50 hover:border-slate-500/70 hover:shadow-2xl transition-all duration-300">
-          <p className="text-sm text-slate-400 mb-3">Price</p>
-          <p className="text-4xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">₱1M</p>
-          <p className="text-sm text-slate-500 mt-2">This month</p>
+      <section>
+        <div className="rounded-lg border border-line bg-surface px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="font-display text-lg text-ink">{t('dashboard.chatBlockTitle')}</p>
+            <p className="text-sm text-ink-2 mt-0.5">{t('dashboard.chatBlockBody')}</p>
+          </div>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors"
+          >
+            {t('dashboard.chatBlockCta')}
+          </button>
         </div>
-
-        <div className="col-span-1 row-span-2 bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-slate-600/50 hover:border-slate-500/70 hover:shadow-2xl transition-all duration-300">
-          <h2 className="text-lg font-semibold text-white mb-6">Device Breakdown</h2>
-          <div className="space-y-3">
-            {[
-              { name: 'Computer', val: '2.5kWh', color: 'cyan' },
-              { name: 'Iron', val: '0.3kWh', color: 'orange' },
-              { name: 'Oven', val: '1.5kWh', color: 'purple' },
-              { name: 'Charger', val: '0.7kWh', color: 'emerald' },
-              { name: 'Other', val: '1.8kWh', color: 'yellow' },
-            ].map(device => (
-              <div key={device.name} className="flex items-center justify-between p-3 bg-slate-600/30 rounded-lg hover:bg-slate-600/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  {device.name === 'Computer' && <ComputerIcon sx={{ fontSize: 20 }} />}
-                  {device.name === 'Iron' && <LocalFireDepartmentIcon sx={{ fontSize: 20 }} />}
-                  {device.name === 'Oven' && <ThermostatIcon sx={{ fontSize: 20 }} />}
-                  {device.name === 'Charger' && <PowerIcon sx={{ fontSize: 20 }} />}
-                  {device.name === 'Other' && <AutoAwesomeIcon sx={{ fontSize: 20 }} />}
-                  <span className="text-sm font-medium text-white">{device.name}</span>
-                </div>
-                <span className={`${deviceColorMap[device.color]} text-sm font-semibold`}>{device.val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="col-span-2 bg-gradient-to-br from-slate-700/40 to-slate-800/40 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-slate-600/50 hover:border-slate-500/70 hover:shadow-2xl transition-all duration-300">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-white">Energy Usage</h2>
-            <select className="px-4 py-2 bg-slate-600/50 border border-slate-500 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500">
-              <option>Hourly</option>
-              <option>Daily</option>
-              <option>Weekly</option>
-              <option>Monthly</option>
-            </select>
-          </div>
-
-          <div className="flex">
-            <div className="flex flex-col justify-between items-end pr-3" style={{ width: '40px', height: '200px' }}>
-              <span className="text-xs text-slate-500">8</span>
-              <span className="text-xs text-slate-500">6</span>
-              <span className="text-xs text-slate-500">4</span>
-              <span className="text-xs text-slate-500">2</span>
-              <span className="text-xs text-slate-500">0</span>
-            </div>
-
-            <svg viewBox="0 0 600 200" className="w-full" style={{ height: '200px' }}>
-              <line x1="0" y1="0" x2="0" y2="190" stroke="#475569" strokeWidth="1.5" />
-              <line x1="0" y1="190" x2="600" y2="190" stroke="#475569" strokeWidth="1.5" />
-              <line x1="0" y1="38" x2="600" y2="38" stroke="#334155" strokeWidth="1" opacity="0.3" strokeDasharray="4,4" />
-              <line x1="0" y1="76" x2="600" y2="76" stroke="#334155" strokeWidth="1" opacity="0.3" strokeDasharray="4,4" />
-              <line x1="0" y1="114" x2="600" y2="114" stroke="#334155" strokeWidth="1" opacity="0.3" strokeDasharray="4,4" />
-              <line x1="0" y1="152" x2="600" y2="152" stroke="#334155" strokeWidth="1" opacity="0.3" strokeDasharray="4,4" />
-
-              <defs>
-                <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
-                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <polyline points="20,100 60,130 100,80 140,120 180,90 220,140 260,75 300,115 340,95 380,135 420,85 460,125 500,105 540,145 580,95" fill="url(#chartGrad)" stroke="none" />
-              <polyline points="20,100 60,130 100,80 140,120 180,90 220,140 260,75 300,115 340,95 380,135 420,85 460,125 500,105 540,145 580,95" fill="none" stroke="url(#lineGrad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-
-              <defs>
-                <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%">
-                  <stop offset="0%" stopColor="#06b6d4" />
-                  <stop offset="50%" stopColor="#0ea5e9" />
-                  <stop offset="100%" stopColor="#3b82f6" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-
-          <div className="flex justify-between text-xs text-slate-500 mt-3" style={{ paddingLeft: '40px' }}>
-            <span>09:42 PM</span>
-            <span>09:42 PM</span>
-            <span>09:42 PM</span>
-            <span>09:42 PM</span>
-            <span>09:43 PM</span>
-            <span>09:44 PM</span>
-            <span>09:46 PM</span>
-            <span>09:48 PM</span>
-            <span>09:51 PM</span>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

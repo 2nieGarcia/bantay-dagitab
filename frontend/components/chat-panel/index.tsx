@@ -1,32 +1,46 @@
 'use client';
 
-import { type ChangeEvent, type FormEvent, useRef, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react';
 import ImageIcon from '@mui/icons-material/Image';
 import DescriptionIcon from '@mui/icons-material/Description';
 import ArticleIcon from '@mui/icons-material/Article';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+import SendIcon from '@mui/icons-material/Send';
 import { useBillContext } from '@/components/shared/bill-context';
 import type { Bill } from '@/components/shared/types';
+import { useLang } from '@/lib/i18n';
 
 interface ChatPanelProps {
   onClose: () => void;
 }
 
+type Message = {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  files?: File[];
+};
+
 export default function ChatPanel({ onClose }: ChatPanelProps) {
-  const [messages, setMessages] = useState<Array<{ id: number; role: 'user' | 'assistant'; content: string; files?: File[] }>>([
-    {
-      id: 1,
-      role: 'assistant',
-      content: 'Hello! I\'m your AI assistant. I can help you analyze your energy consumption, detect anomalies, and answer questions about your bills. You can upload your MERALCO bills here and I\'ll extract and summarize the data for you. The information will be saved to your Bills tab for future reference. How can I assist you today?',
-    },
+  const { t } = useLang();
+  const [messages, setMessages] = useState<Message[]>([
+    { id: 1, role: 'assistant', content: t('chat.greeting') },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { uploadedBills, setUploadedBills } = useBillContext();
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isLoading]);
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -41,11 +55,11 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
 
   const getFileIcon = (file: File) => {
     const type = file.type;
-    if (type.startsWith('image/')) return <ImageIcon sx={{ fontSize: 16 }} />;
-    if (type === 'application/pdf') return <DescriptionIcon sx={{ fontSize: 16 }} />;
-    if (type.includes('word') || type.includes('document')) return <ArticleIcon sx={{ fontSize: 16 }} />;
-    if (type.includes('sheet') || type.includes('excel')) return <TableChartIcon sx={{ fontSize: 16 }} />;
-    return <AttachFileIcon sx={{ fontSize: 16 }} />;
+    if (type.startsWith('image/')) return <ImageIcon sx={{ fontSize: 14 }} />;
+    if (type === 'application/pdf') return <DescriptionIcon sx={{ fontSize: 14 }} />;
+    if (type.includes('word') || type.includes('document')) return <ArticleIcon sx={{ fontSize: 14 }} />;
+    if (type.includes('sheet') || type.includes('excel')) return <TableChartIcon sx={{ fontSize: 14 }} />;
+    return <AttachFileIcon sx={{ fontSize: 14 }} />;
   };
 
   const handleSendMessage = async (e: FormEvent<HTMLFormElement>, customMessage?: string) => {
@@ -53,9 +67,9 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     const messageContent = customMessage || input;
     if (!messageContent.trim() && selectedFiles.length === 0) return;
 
-    const userMessage = {
+    const userMessage: Message = {
       id: messages.length + 1,
-      role: 'user' as const,
+      role: 'user',
       content: messageContent,
       files: selectedFiles.length > 0 ? selectedFiles : undefined,
     };
@@ -67,14 +81,14 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         f.type.startsWith('image/') ||
         f.type === 'application/pdf' ||
         f.name.toLowerCase().includes('bill') ||
-        f.name.toLowerCase().includes('meralco')
+        f.name.toLowerCase().includes('meralco'),
     );
 
     setSelectedFiles([]);
     setIsLoading(true);
 
     setTimeout(() => {
-      let responseContent = 'I understand. I\'m analyzing your data.';
+      let responseContent = t('chat.responseGeneric');
 
       if (billFiles.length > 0) {
         const fileNames = billFiles.map(f => f.name).join(', ');
@@ -84,7 +98,11 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
             id: uploadedBills.length + fileIdx + 1,
             name: file.name.replace(/\.[^/.]+$/, '') || 'MERALCO Bill',
             status: 'completed',
-            uploadDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            uploadDate: new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            }),
             ocrConfidence: 88 + Math.random() * 10,
             extractedData: {
               accountDetails: {
@@ -123,14 +141,12 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           setUploadedBills(prev => [...prev, newBill]);
         });
 
-        responseContent = `I've successfully analyzed your bill(s): ${fileNames}\n\nAnalysis Summary:\n• Consumption: 191 kWh\n• Previous Reading: 12,641\n• Current Reading: 12,832\n• Total Amount Due: ₱1,482.05\n• Due Date: Jun 5, 2026\n\nThe extracted data has been saved to your Bills tab. You can review all details there.`;
-      } else {
-        responseContent = 'I understand. I\'m analyzing your energy data. This is a placeholder response. In a real implementation, this would connect to your AI backend service to provide intelligent insights about your consumption patterns.';
+        responseContent = `Read your bill: ${fileNames}\n\nQuick summary:\n• Consumption: 191 kWh\n• Total due: ₱1,482.05\n• Due date: Jun 5, 2026\n\nFull details saved to the Bills tab.`;
       }
 
-      const botMessage = {
+      const botMessage: Message = {
         id: messages.length + 2,
-        role: 'assistant' as const,
+        role: 'assistant',
         content: responseContent,
       };
       setMessages(prev => [...prev, botMessage]);
@@ -138,37 +154,52 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     }, 800);
   };
 
+  const suggestions = [
+    { key: 'analyze', label: t('chat.suggestion.analyze') },
+    { key: 'bill', label: t('chat.suggestion.bill') },
+    { key: 'save', label: t('chat.suggestion.save') },
+  ];
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
-        <h2 className="text-lg font-semibold text-white">AI Assistant</h2>
+    <div className="flex h-full flex-col bg-surface text-ink">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+        <h2 className="font-display text-lg text-ink">{t('chat.title')}</h2>
         <button
           type="button"
           onClick={onClose}
-          className="text-slate-400 hover:text-slate-200 transition-colors text-2xl leading-none"
+          aria-label="Close"
+          className="text-ink-3 hover:text-ink transition-colors p-1 -m-1"
         >
-          ×
+          <CloseIcon sx={{ fontSize: 20 }} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0">
         {messages.map(message => (
-          <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className="max-w-xs">
-              <div className={`px-4 py-2 rounded-lg ${
-                message.role === 'user'
-                  ? 'bg-gradient-to-r from-cyan-500 to-sky-500 text-white rounded-br-none'
-                  : 'bg-slate-700/50 text-slate-100 border border-slate-600/50 rounded-bl-none'
-              }`}>
-                <p className="text-sm whitespace-pre-line">{message.content}</p>
+          <div
+            key={message.id}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div className="max-w-[85%]">
+              <div
+                className={
+                  message.role === 'user'
+                    ? 'px-3.5 py-2.5 rounded-lg rounded-br-sm bg-accent text-accent-ink'
+                    : 'px-3.5 py-2.5 rounded-lg rounded-bl-sm bg-page text-ink border border-line'
+                }
+              >
+                <p className="text-sm whitespace-pre-line leading-relaxed">{message.content}</p>
               </div>
               {message.files && message.files.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {message.files.map((file, idx) => (
-                    <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/30 rounded-lg border border-slate-600/50 text-xs text-slate-300">
-                      <span>{getFileIcon(file)}</span>
-                      <span className="truncate">{file.name}</span>
-                      <span className="text-slate-500">({(file.size / 1024).toFixed(1)}KB)</span>
+                    <div
+                      key={idx}
+                      className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-line bg-page text-xs text-ink-2"
+                    >
+                      <span className="text-ink-3">{getFileIcon(file)}</span>
+                      <span className="truncate max-w-45">{file.name}</span>
+                      <span className="text-ink-3 tabular">{(file.size / 1024).toFixed(1)} KB</span>
                     </div>
                   ))}
                 </div>
@@ -178,96 +209,95 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-slate-700/50 text-slate-100 border border-slate-600/50 px-4 py-2 rounded-lg rounded-bl-none">
-              <div className="flex gap-2">
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+            <div className="px-3.5 py-3 rounded-lg rounded-bl-sm bg-page border border-line">
+              <div className="flex gap-1.5">
+                <div className="w-1.5 h-1.5 bg-ink-3 rounded-full animate-bounce" />
+                <div
+                  className="w-1.5 h-1.5 bg-ink-3 rounded-full animate-bounce"
+                  style={{ animationDelay: '0.15s' }}
+                />
+                <div
+                  className="w-1.5 h-1.5 bg-ink-3 rounded-full animate-bounce"
+                  style={{ animationDelay: '0.3s' }}
+                />
               </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="border-t border-slate-700/50 bg-slate-800/50 p-4 space-y-3">
-        {messages.length <= 1 && (
-          <div className="space-y-2">
+      {messages.length <= 1 && (
+        <div className="px-5 pb-3 space-y-2 border-t border-line pt-3">
+          {suggestions.map(s => (
             <button
+              key={s.key}
               type="button"
-              onClick={e => handleSendMessage(e as any, 'Analyze my energy consumption patterns and give recommendations')}
-              className="w-full px-4 py-3 bg-slate-700/30 hover:bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/70 text-slate-300 hover:text-slate-100 text-sm rounded-lg transition-all flex items-center justify-between group"
+              onClick={e =>
+                handleSendMessage(e as unknown as FormEvent<HTMLFormElement>, s.label)
+              }
+              className="w-full text-left px-3 py-2.5 text-sm rounded-md border border-line text-ink-2 hover:border-line-strong hover:bg-elevated hover:text-ink transition-colors"
             >
-              <span>Analyze my consumption</span>
-              <span className="text-slate-500 group-hover:text-slate-400 transition-colors">↓</span>
+              {s.label}
             </button>
-            <button
-              type="button"
-              onClick={e => handleSendMessage(e as any, 'Analyze my MERALCO bill and explain the charges')}
-              className="w-full px-4 py-3 bg-slate-700/30 hover:bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/70 text-slate-300 hover:text-slate-100 text-sm rounded-lg transition-all flex items-center justify-between group"
-            >
-              <span>Analyze my MERALCO bill</span>
-              <span className="text-slate-500 group-hover:text-slate-400 transition-colors">↓</span>
-            </button>
-            <button
-              type="button"
-              onClick={e => handleSendMessage(e as any, 'What are the best ways to reduce my energy costs?')}
-              className="w-full px-4 py-3 bg-slate-700/30 hover:bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/70 text-slate-300 hover:text-slate-100 text-sm rounded-lg transition-all flex items-center justify-between group"
-            >
-              <span>Energy-saving tips</span>
-              <span className="text-slate-500 group-hover:text-slate-400 transition-colors">↓</span>
-            </button>
-          </div>
-        )}
+          ))}
+        </div>
+      )}
 
-        {selectedFiles.length > 0 && (
-          <div className="space-y-2 pb-2 border-b border-slate-700/50">
-            <p className="text-xs text-slate-400">Attached files ({selectedFiles.length}):</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedFiles.map((file, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/50 rounded-lg border border-slate-600/50 text-xs text-slate-300 hover:border-cyan-500/50 transition-all">
-                  <span>{getFileIcon(file)}</span>
-                  <span className="max-w-[100px] truncate">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(idx)}
-                    className="text-slate-500 hover:text-red-400 transition-colors ml-1"
-                  >
-                    <CloseIcon sx={{ fontSize: 16 }} />
-                  </button>
-                </div>
-              ))}
-            </div>
+      {selectedFiles.length > 0 && (
+        <div className="px-5 py-3 border-t border-line">
+          <p className="text-xs text-ink-3 mb-2">
+            {t('chat.attached')} ({selectedFiles.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {selectedFiles.map((file, idx) => (
+              <div
+                key={idx}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-line bg-page text-xs text-ink-2"
+              >
+                <span className="text-ink-3">{getFileIcon(file)}</span>
+                <span className="max-w-30 truncate">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeFile(idx)}
+                  className="text-ink-3 hover:text-signal-strong transition-colors"
+                  aria-label="Remove"
+                >
+                  <CloseIcon sx={{ fontSize: 14 }} />
+                </button>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-700/50 space-y-2">
-        <div className="flex gap-2">
+      <form onSubmit={handleSendMessage} className="px-5 py-4 border-t border-line">
+        <div className="flex gap-2 items-center">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center w-10 h-10 flex-shrink-0 bg-slate-700/50 hover:bg-slate-700/70 border border-slate-600/50 hover:border-purple-500/50 text-slate-300 hover:text-purple-300 rounded-lg transition-all"
-            title="Attach files"
+            className="inline-flex items-center justify-center w-10 h-10 shrink-0 rounded-md border border-line-strong text-ink-2 hover:text-ink hover:bg-elevated transition-colors"
+            title={t('chat.attachTitle')}
+            aria-label={t('chat.attachTitle')}
           >
-            +
+            <AddIcon sx={{ fontSize: 18 }} />
           </button>
           <input
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Ask me anything..."
-            className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all"
+            placeholder={t('chat.placeholder')}
+            className="flex-1 px-3 py-2.5 rounded-md border border-line-strong bg-page text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || (!input.trim() && selectedFiles.length === 0)}
-            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 disabled:from-slate-600 disabled:to-slate-600 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 disabled:shadow-none flex-shrink-0"
+            className="inline-flex items-center justify-center w-10 h-10 shrink-0 rounded-md bg-ink text-ink-inverse hover:bg-ink-2 disabled:bg-ink-3 disabled:cursor-not-allowed transition-colors"
+            aria-label={t('common.send')}
           >
-            Send
+            <SendIcon sx={{ fontSize: 16 }} />
           </button>
         </div>
-
         <input
           ref={fileInputRef}
           type="file"
