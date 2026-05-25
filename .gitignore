@@ -70,3 +70,6 @@ credentials.json
 
 .vscode/
 .claude/
+
+skills-lock.json
+.agents/
