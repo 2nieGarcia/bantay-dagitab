@@ -139,7 +139,7 @@ function AlertCard({
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wider text-ink-3 mb-0.5">{t('common.actualReading')}</dt>
-            <dd className="font-display text-lg text-signal-strong tabular leading-none">
+            <dd className="font-readout text-lg text-signal-strong leading-none">
               {alert.actual_wattage} <span className="text-xs font-sans text-ink-3 font-normal">W</span>
             </dd>
           </div>
@@ -154,7 +154,7 @@ function AlertCard({
 
       {isOpen && (
         <div className="border-t border-line px-6 py-5 bg-page">
-          <p className="text-xs uppercase tracking-wider text-ember font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-accent font-semibold mb-2">
             {t('reports.recommendation')}
           </p>
           <p className="text-sm text-ink leading-relaxed max-w-2xl">{t(alert.recommendationKey)}</p>

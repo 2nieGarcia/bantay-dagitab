@@ -109,7 +109,7 @@ export default function BillsContent() {
                           <p className="text-xs uppercase tracking-wider text-ink-3 mb-1 inline-flex items-center gap-1">
                             <AttachMoneyIcon sx={{ fontSize: 13 }} /> {t('bills.total')}
                           </p>
-                          <p className="font-display text-base text-ink tabular">
+                          <p className="font-readout text-base text-ink">
                             ₱{bill.extractedData.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                           </p>
                           <p className="text-xs text-ink-3 tabular">
@@ -184,19 +184,19 @@ export default function BillsContent() {
                       <div className="grid grid-cols-3 gap-6">
                         <div>
                           <p className="text-xs uppercase tracking-wider text-ink-3 mb-1">{t('bills.previousReading')}</p>
-                          <p className="font-display text-2xl text-ink tabular leading-none">
+                          <p className="font-readout text-2xl text-ink leading-none">
                             {bill.extractedData.consumption.previousReading}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-wider text-ink-3 mb-1">{t('bills.currentReading')}</p>
-                          <p className="font-display text-2xl text-ink tabular leading-none">
+                          <p className="font-readout text-2xl text-ink leading-none">
                             {bill.extractedData.consumption.currentReading}
                           </p>
                         </div>
                         <div className="border-l border-line-strong pl-6">
-                          <p className="text-xs uppercase tracking-wider text-ember mb-1">{t('bills.totalKwh')}</p>
-                          <p className="font-display text-2xl text-ember tabular leading-none">
+                          <p className="text-xs uppercase tracking-wider text-accent mb-1 font-semibold">{t('bills.totalKwh')}</p>
+                          <p className="font-readout text-2xl text-accent-strong leading-none">
                             {bill.extractedData.consumption.totalkWh}
                             <span className="text-sm font-sans text-ink-3 font-normal ml-1">kWh</span>
                           </p>
@@ -215,7 +215,7 @@ export default function BillsContent() {
                           <li key={i} className="py-3 flex items-center justify-between gap-4">
                             <span className="text-sm text-ink">{c.description}</span>
                             <div className="flex items-center gap-4">
-                              <span className="text-sm tabular text-ink">
+                              <span className="font-readout text-sm text-ink">
                                 ₱{c.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                               </span>
                               <span className="w-16 text-right">
@@ -229,8 +229,8 @@ export default function BillsContent() {
                       <div className="flex flex-wrap items-end justify-between gap-4 pt-3 border-t-2 border-ink">
                         <div>
                           <p className="text-xs uppercase tracking-wider text-ink-3">{t('bills.totalAmountDue')}</p>
-                          <p className="font-display text-4xl text-ink tabular leading-none mt-1">
-                            <span className="text-ink-3 align-top text-lg mr-0.5 font-normal">₱</span>
+                          <p className="font-readout text-4xl text-ink leading-none mt-1">
+                            <span className="text-ink-3 align-top text-lg mr-0.5 font-normal font-sans">₱</span>
                             {bill.extractedData.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                           </p>
                         </div>

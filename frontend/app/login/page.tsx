@@ -25,7 +25,7 @@ export default function LoginPage() {
 
       <div className="flex-1 mx-auto max-w-6xl w-full px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-12 items-center">
         <div className="hidden lg:block">
-          <p className="text-xs uppercase tracking-[0.18em] font-medium text-ember mb-5">
+          <p className="text-xs uppercase tracking-[0.18em] font-semibold text-accent mb-5">
             {t('home.kicker')}
           </p>
           <h1 className="font-display text-5xl xl:text-6xl text-ink tracking-tight leading-[1.05]">

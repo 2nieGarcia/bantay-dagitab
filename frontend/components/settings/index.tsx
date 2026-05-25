@@ -176,7 +176,7 @@ export default function SettingsContent() {
                 {t('settings.iot.noneBody')}
               </p>
             </div>
-            <button className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors">
+            <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
               {t('settings.iot.add')}
             </button>
           </div>

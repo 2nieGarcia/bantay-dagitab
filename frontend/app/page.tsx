@@ -32,13 +32,13 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 pt-20 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-10 gap-y-10 items-end">
           <div className="lg:col-span-8">
-            <p className="text-xs uppercase tracking-[0.18em] font-medium text-ember mb-5">
+            <p className="text-xs uppercase tracking-[0.18em] font-semibold text-accent mb-5">
               {t('home.kicker')}
             </p>
-            <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-ink leading-[1.02] tracking-tight">
+            <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-ink leading-[1.02]">
               {t('home.headline1')}
               <br />
-              <span className="italic text-ink-warm">{t('home.headline2')}</span>
+              <span className="font-normal text-ink-3">{t('home.headline2')}</span>
             </h1>
           </div>
           <div className="lg:col-span-4">
@@ -62,37 +62,37 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-hero border-y border-line paper-grain">
+      <section className="border-y border-line bg-circuit">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <p className="text-xs uppercase tracking-[0.18em] font-medium text-ink-3 mb-10">
+          <p className="text-xs uppercase tracking-[0.18em] font-semibold text-ink-3 mb-10">
             {t('home.sampleLabel')}
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-10 items-end">
             <div className="lg:col-span-8">
               <p className="text-sm text-ink-2 mb-3 font-medium">{t('home.sample.projection')}</p>
-              <p className="font-display text-7xl md:text-8xl text-ink tracking-tight tabular leading-none">
-                <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal">₱</span>
+              <p className="font-readout text-7xl md:text-8xl text-ink leading-none">
+                <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal font-sans">₱</span>
                 2,847
               </p>
               <p className="text-base md:text-lg text-ink-2 mt-6 max-w-xl leading-relaxed">
                 {t('home.sample.context', { amount: '' }).split('{amount}')[0]}
-                <span className="font-semibold text-signal-strong tabular">₱430</span>
+                <span className="font-readout text-signal-strong">₱430</span>
                 {t('home.sample.context', { amount: '' }).split('{amount}')[1]}
               </p>
             </div>
 
             <div className="lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8 lg:border-l lg:border-line-strong lg:pl-12">
               <div>
-                <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+                <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
                   {t('home.sample.consumption')}
                 </p>
-                <p className="font-display text-3xl text-ink mt-2 tabular leading-none">
+                <p className="font-readout text-3xl text-ink mt-2 leading-none">
                   234 <span className="text-base text-ink-3 font-sans font-normal">kWh</span>
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+                <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
                   {t('home.sample.alerts')}
                 </p>
                 <p className="font-display text-3xl text-signal-strong mt-2 leading-none">
@@ -112,7 +112,7 @@ export default function Home() {
             { num: '03', titleKey: 'home.feature3.title', bodyKey: 'home.feature3.body' },
           ].map(f => (
             <div key={f.num}>
-              <p className="font-display text-3xl text-ember mb-3 leading-none">{f.num}</p>
+              <p className="font-readout text-2xl text-accent mb-3 leading-none">{f.num}</p>
               <h3 className="text-lg font-semibold text-ink mb-3 tracking-tight">{t(f.titleKey)}</h3>
               <p className="text-sm text-ink-2 leading-relaxed">{t(f.bodyKey)}</p>
             </div>

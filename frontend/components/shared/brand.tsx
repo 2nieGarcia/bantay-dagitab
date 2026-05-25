@@ -61,7 +61,7 @@ export function Brand({
     <span className={`inline-flex items-center gap-3 ${className}`}>
       <BrandMark size={markSize} />
       <span className="leading-none">
-        <span className={`font-display font-medium text-ink tracking-tight block ${wordmarkClass}`}>
+        <span className={`font-sans font-semibold text-ink tracking-tight block ${wordmarkClass}`}>
           {t('brand.name')}
         </span>
         {showTagline && (

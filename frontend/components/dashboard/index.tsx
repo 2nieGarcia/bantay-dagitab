@@ -76,45 +76,45 @@ export default function DashboardContent({
         </div>
       </div>
 
-      <section className="bg-hero rounded-lg border border-line paper-grain px-8 py-10 mb-12">
+      <section className="rounded-lg border border-line bg-circuit px-8 py-10 mb-12">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-x-12 gap-y-8 items-end">
           <div className="md:col-span-8">
-            <p className="text-xs uppercase tracking-[0.18em] font-medium text-ember mb-3">
+            <p className="text-xs uppercase tracking-[0.18em] font-semibold text-accent mb-3">
               {t('dashboard.projectionLabel')}
             </p>
-            <p className="font-display text-7xl md:text-8xl text-ink tracking-tight tabular leading-none">
-              <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal">₱</span>
+            <p className="font-readout text-7xl md:text-8xl text-ink leading-none">
+              <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal font-sans">₱</span>
               2,847
             </p>
             <p className="text-base md:text-lg text-ink-2 mt-6 max-w-xl leading-relaxed">
               {ctxBefore}
-              <span className="font-semibold text-signal-strong tabular">₱430</span>
+              <span className="font-readout text-signal-strong">₱430</span>
               {ctxAfter}
             </p>
           </div>
 
           <div className="md:col-span-4 grid grid-cols-3 md:grid-cols-1 gap-5 md:gap-6 md:border-l md:border-line-strong md:pl-10">
             <div>
-              <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+              <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
                 {t('dashboard.statConsumption')}
               </p>
-              <p className="font-display text-2xl text-ink mt-1.5 tabular leading-none">
+              <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
                 {totalKwh} <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
               </p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+              <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
                 {t('dashboard.statDaily')}
               </p>
-              <p className="font-display text-2xl text-ink mt-1.5 tabular leading-none">
+              <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
                 9.3 <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
               </p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider text-ink-3 font-medium">
+              <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
                 {t('dashboard.statRate')}
               </p>
-              <p className="font-display text-2xl text-ink mt-1.5 tabular leading-none">
+              <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
                 <span className="text-ink-3 text-base font-sans font-normal">₱</span>12.16
               </p>
             </div>
@@ -147,7 +147,7 @@ export default function DashboardContent({
               </div>
               <div className="text-right shrink-0">
                 <p className="text-xs text-ink-3">{t('dashboard.extraOnBill')}</p>
-                <p className="font-display text-xl text-signal-strong tabular mt-0.5 leading-none">
+                <p className="font-readout text-xl text-signal-strong mt-0.5 leading-none">
                   +₱{a.extraPeso}
                 </p>
               </div>
@@ -169,13 +169,13 @@ export default function DashboardContent({
               const isPeak = d.kwh === maxKwh;
               return (
                 <div key={d.day} className="flex-1 flex flex-col items-center gap-2 min-w-0">
-                  <span className={`text-xs tabular ${isPeak ? 'text-ember font-semibold' : 'text-ink-2'}`}>
+                  <span className={`text-xs font-readout ${isPeak ? 'text-accent-strong' : 'text-ink-2'}`}>
                     {d.kwh.toFixed(1)}
                   </span>
                   <div className="w-full bg-elevated rounded-sm relative" style={{ height: '180px' }}>
                     <div
                       className={`absolute bottom-0 left-0 right-0 rounded-sm transition-[height] duration-300 ${
-                        isPeak ? 'bg-ember' : 'bg-accent'
+                        isPeak ? 'bg-accent-strong' : 'bg-accent'
                       }`}
                       style={{ height: `${heightPct}%` }}
                     />
@@ -228,7 +228,7 @@ export default function DashboardContent({
           </div>
           <button
             type="button"
-            className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors"
+            className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors"
           >
             {t('dashboard.chatBlockCta')}
           </button>
