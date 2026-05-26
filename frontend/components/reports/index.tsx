@@ -2,76 +2,19 @@
 
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 
 type Alert = {
   alert_id: string;
   device_id: string;
   timestamp: string;
-  alert_type: 'HIGH_USAGE_ANOMALY' | 'UNUSUAL_PATTERN' | 'DEVICE_MALFUNCTION' | 'BILLING_DISCREPANCY';
+  alert_type: string;
   expected_wattage_range: string;
   actual_wattage: number;
-  messageKey: string;
-  recommendationKey: string;
-  resolved_at?: string;
+  message: string;
+  status: 'active' | 'resolved';
 };
-
-const active: Alert[] = [
-  {
-    alert_id: 'alert_001',
-    device_id: 'meter_manila_001',
-    timestamp: '2026-05-17T14:30:00Z',
-    alert_type: 'HIGH_USAGE_ANOMALY',
-    expected_wattage_range: '100–250',
-    actual_wattage: 450.5,
-    messageKey: 'reports.alert1.message',
-    recommendationKey: 'reports.alert1.recommendation',
-  },
-  {
-    alert_id: 'alert_002',
-    device_id: 'meter_manila_002',
-    timestamp: '2026-05-17T12:15:00Z',
-    alert_type: 'UNUSUAL_PATTERN',
-    expected_wattage_range: '50–150',
-    actual_wattage: 280,
-    messageKey: 'reports.alert2.message',
-    recommendationKey: 'reports.alert2.recommendation',
-  },
-  {
-    alert_id: 'alert_003',
-    device_id: 'meter_manila_001',
-    timestamp: '2026-05-17T08:45:00Z',
-    alert_type: 'DEVICE_MALFUNCTION',
-    expected_wattage_range: '0–50',
-    actual_wattage: 200,
-    messageKey: 'reports.alert3.message',
-    recommendationKey: 'reports.alert3.recommendation',
-  },
-];
-
-const past: Alert[] = [
-  {
-    alert_id: 'alert_past_001',
-    device_id: 'meter_manila_001',
-    timestamp: '2026-05-16T18:00:00Z',
-    alert_type: 'HIGH_USAGE_ANOMALY',
-    expected_wattage_range: '100–250',
-    actual_wattage: 420,
-    messageKey: 'reports.past1.message',
-    recommendationKey: 'reports.past1.recommendation',
-    resolved_at: '2026-05-16T20:30:00Z',
-  },
-  {
-    alert_id: 'alert_past_002',
-    device_id: 'meter_manila_002',
-    timestamp: '2026-05-15T10:00:00Z',
-    alert_type: 'BILLING_DISCREPANCY',
-    expected_wattage_range: '50–150',
-    actual_wattage: 180,
-    messageKey: 'reports.past2.message',
-    recommendationKey: 'reports.past2.recommendation',
-    resolved_at: '2026-05-15T14:00:00Z',
-  },
-];
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-PH', {
@@ -114,14 +57,16 @@ function AlertCard({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-baseline gap-3 mb-1">
               <h3 className="font-display text-lg text-ink">
-                {t(`reports.type.${alert.alert_type}`)}
+                {t(`reports.type.${alert.alert_type}`) !== `reports.type.${alert.alert_type}`
+                  ? t(`reports.type.${alert.alert_type}`)
+                  : alert.alert_type}
               </h3>
               <span className="text-xs text-ink-3 font-medium uppercase tracking-wider">
                 {isResolved ? t('common.resolved') : t('common.active')}
               </span>
               <span className="text-xs text-ink-3 tabular">{formatDate(alert.timestamp)}</span>
             </div>
-            <p className="text-sm text-ink-2 leading-relaxed">{t(alert.messageKey)}</p>
+            <p className="text-sm text-ink-2 leading-relaxed">{alert.message}</p>
           </div>
           <span className={`text-ink-3 text-base transition-transform shrink-0 mt-1 ${isOpen ? 'rotate-180' : ''}`}>
             ⌄
@@ -143,12 +88,6 @@ function AlertCard({
               {alert.actual_wattage} <span className="text-xs font-sans text-ink-3 font-normal">W</span>
             </dd>
           </div>
-          {isResolved && alert.resolved_at && (
-            <div>
-              <dt className="text-xs uppercase tracking-wider text-ink-3 mb-0.5">{t('common.resolved')}</dt>
-              <dd className="text-sm text-ink tabular">{formatDate(alert.resolved_at)}</dd>
-            </div>
-          )}
         </dl>
       </button>
 
@@ -157,7 +96,7 @@ function AlertCard({
           <p className="text-xs uppercase tracking-wider text-accent font-semibold mb-2">
             {t('reports.recommendation')}
           </p>
-          <p className="text-sm text-ink leading-relaxed max-w-2xl">{t(alert.recommendationKey)}</p>
+          <p className="text-sm text-ink leading-relaxed max-w-2xl">{alert.message}</p>
           {!isResolved && (
             <div className="flex flex-wrap gap-3 mt-5">
               <button className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors">
@@ -178,6 +117,17 @@ export default function ReportsContent() {
   const [openId, setOpenId] = useState<string | null>(null);
   const { t } = useLang();
 
+  const { data: alerts = [], isLoading, isError } = useQuery<Alert[]>({
+    queryKey: ['recent-anomalies'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/recent-anomalies/');
+      return response.data;
+    },
+  });
+
+  const active = alerts.filter(a => a.status === 'active');
+  const past = alerts.filter(a => a.status === 'resolved');
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="mb-12">
@@ -185,59 +135,71 @@ export default function ReportsContent() {
         <p className="text-sm text-ink-2 mt-2 max-w-xl leading-relaxed">{t('reports.lede')}</p>
       </div>
 
-      <section className="mb-12">
-        <div className="flex items-baseline justify-between mb-5">
-          <h2 className="font-display text-2xl text-ink tracking-tight">
-            {t('reports.activeHeading')}
-          </h2>
-          <span className="text-xs text-ink-3 font-medium tabular">{active.length}</span>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-32">
+          <p className="text-ink-2">Loading...</p>
         </div>
-        {active.length === 0 ? (
-          <div className="border border-line rounded-lg bg-surface px-6 py-8">
-            <p className="font-display text-lg text-success">{t('reports.allClear.title')}</p>
-            <p className="text-sm text-ink-2 mt-1 max-w-xl">{t('reports.allClear.body')}</p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {active.map(a => (
-              <AlertCard
-                key={a.alert_id}
-                alert={a}
-                isResolved={false}
-                isOpen={openId === a.alert_id}
-                onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+      ) : isError ? (
+        <div className="flex justify-center items-center h-32">
+          <p className="text-signal-strong">Error loading anomalies.</p>
+        </div>
+      ) : (
+        <>
+          <section className="mb-12">
+            <div className="flex items-baseline justify-between mb-5">
+              <h2 className="font-display text-2xl text-ink tracking-tight">
+                {t('reports.activeHeading')}
+              </h2>
+              <span className="text-xs text-ink-3 font-medium tabular">{active.length}</span>
+            </div>
+            {active.length === 0 ? (
+              <div className="border border-line rounded-lg bg-surface px-6 py-8">
+                <p className="font-display text-lg text-success">{t('reports.allClear.title')}</p>
+                <p className="text-sm text-ink-2 mt-1 max-w-xl">{t('reports.allClear.body')}</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {active.map(a => (
+                  <AlertCard
+                    key={a.alert_id}
+                    alert={a}
+                    isResolved={false}
+                    isOpen={openId === a.alert_id}
+                    onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
 
-      <section>
-        <div className="flex items-baseline justify-between mb-5">
-          <h2 className="font-display text-2xl text-ink tracking-tight">
-            {t('reports.historyHeading')}
-          </h2>
-          <span className="text-xs text-ink-3 font-medium tabular">{past.length}</span>
-        </div>
-        {past.length === 0 ? (
-          <div className="border border-line rounded-lg bg-surface px-6 py-8">
-            <p className="text-sm font-medium text-ink">{t('reports.noHistory.title')}</p>
-            <p className="text-sm text-ink-2 mt-1">{t('reports.noHistory.body')}</p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {past.map(a => (
-              <AlertCard
-                key={a.alert_id}
-                alert={a}
-                isResolved
-                isOpen={openId === a.alert_id}
-                onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+          <section>
+            <div className="flex items-baseline justify-between mb-5">
+              <h2 className="font-display text-2xl text-ink tracking-tight">
+                {t('reports.historyHeading')}
+              </h2>
+              <span className="text-xs text-ink-3 font-medium tabular">{past.length}</span>
+            </div>
+            {past.length === 0 ? (
+              <div className="border border-line rounded-lg bg-surface px-6 py-8">
+                <p className="text-sm font-medium text-ink">{t('reports.noHistory.title')}</p>
+                <p className="text-sm text-ink-2 mt-1">{t('reports.noHistory.body')}</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {past.map(a => (
+                  <AlertCard
+                    key={a.alert_id}
+                    alert={a}
+                    isResolved
+                    isOpen={openId === a.alert_id}
+                    onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
