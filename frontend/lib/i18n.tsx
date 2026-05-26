@@ -502,7 +502,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved === 'en' || saved === 'fil') setLangState(saved);
+      if (saved === 'en' || saved === 'fil') {
+        setTimeout(() => setLangState(saved), 0);
+      }
     } catch {}
   }, []);
 

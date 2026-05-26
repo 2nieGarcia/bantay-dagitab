@@ -1,6 +1,7 @@
 'use client';
 
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react';
+import api from '@/lib/api';
 import ImageIcon from '@mui/icons-material/Image';
 import DescriptionIcon from '@mui/icons-material/Description';
 import ArticleIcon from '@mui/icons-material/Article';
@@ -9,8 +10,6 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
-import { useBillContext } from '@/components/shared/bill-context';
-import type { Bill } from '@/components/shared/types';
 import { useLang } from '@/lib/i18n';
 
 interface ChatPanelProps {
@@ -34,7 +33,6 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { uploadedBills, setUploadedBills } = useBillContext();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -76,82 +74,36 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
 
-    const billFiles = selectedFiles.filter(
-      f =>
-        f.type.startsWith('image/') ||
-        f.type === 'application/pdf' ||
-        f.name.toLowerCase().includes('bill') ||
-        f.name.toLowerCase().includes('meralco'),
-    );
-
     setSelectedFiles([]);
     setIsLoading(true);
 
-    setTimeout(() => {
-      let responseContent = t('chat.responseGeneric');
+    try {
+      const res = await api.post('/chat/ask/', { query: messageContent });
+      const responseContent = res.data.response || t('chat.responseGeneric');
 
-      if (billFiles.length > 0) {
-        const fileNames = billFiles.map(f => f.name).join(', ');
-
-        billFiles.forEach((file, fileIdx) => {
-          const newBill: Bill = {
-            id: uploadedBills.length + fileIdx + 1,
-            name: file.name.replace(/\.[^/.]+$/, '') || 'MERALCO Bill',
-            status: 'completed',
-            uploadDate: new Date().toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            }),
-            ocrConfidence: 88 + Math.random() * 10,
-            extractedData: {
-              accountDetails: {
-                accountNumber: '123-456-7890',
-                customerName: 'Juan Dela Cruz',
-                serviceAddress: '123 Main Street, Manila, 1000',
-                meterNumber: 'M-2026-001',
-                confidence: 95,
-              },
-              billingPeriod: {
-                startDate: 'Apr 15, 2026',
-                endDate: 'May 14, 2026',
-                daysInPeriod: 30,
-                readingDate: 'May 14, 2026',
-                confidence: 98,
-              },
-              consumption: {
-                previousReading: 12641,
-                currentReading: 12832,
-                totalkWh: 191,
-                unit: 'kWh',
-                confidence: 97,
-              },
-              charges: [
-                { description: 'Generation', amount: 1140.5, confidence: 94 },
-                { description: 'Transmission', amount: 185.75, confidence: 92 },
-                { description: 'Distribution', amount: 125.3, confidence: 91 },
-                { description: 'System Loss', amount: 45.5, confidence: 89 },
-                { description: 'Metering', amount: 15.0, confidence: 95 },
-              ],
-              totalAmount: 1482.05,
-              dueDate: 'Jun 5, 2026',
-              confidence: 96,
-            },
-          };
-          setUploadedBills(prev => [...prev, newBill]);
-        });
-
-        responseContent = `Read your bill: ${fileNames}\n\nQuick summary:\n• Consumption: 191 kWh\n• Total due: ₱1,482.05\n• Due date: Jun 5, 2026\n\nFull details saved to the Bills tab.`;
-      }
-
-      const botMessage: Message = {
-        id: messages.length + 2,
-        role: 'assistant',
-        content: responseContent,
-      };
-      setMessages(prev => [...prev, botMessage]);
+      // Initialize the bot message for streaming
+      const botMessageId = messages.length + 2;
+      setMessages(prev => [...prev, { id: botMessageId, role: 'assistant', content: '' }]);
       setIsLoading(false);
-    }, 800);
+
+      // Simulate streaming word by word
+      const words = responseContent.split(/(\s+)/); // Preserve spaces
+      
+      for (let i = 0; i < words.length; i++) {
+        const textToSet = words.slice(0, i + 1).join('');
+        setMessages(prev => 
+          prev.map(msg => msg.id === botMessageId ? { ...msg, content: textToSet } : msg)
+        );
+        await new Promise(r => setTimeout(r, 20)); // simulated delay
+      }
+    } catch (error) {
+      console.error('Chat API Error:', error);
+      setMessages(prev => [
+        ...prev,
+        { id: messages.length + 2, role: 'assistant', content: 'An error occurred while fetching the response.' }
+      ]);
+      setIsLoading(false);
+    }
   };
 
   const suggestions = [
