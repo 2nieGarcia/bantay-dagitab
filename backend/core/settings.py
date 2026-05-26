@@ -151,8 +151,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Parse CORS origins from .env (e.g., http://localhost:3000,https://my-frontend.vercel.app)
-cors_env = os.environ.get('CORS_ORIGIN_WHITELIST', 'http://localhost:3000,http://127.0.0.1:3000')
-CORS_ORIGIN_WHITELIST = cors_env.split(',')
+cors_env = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000')
+CORS_ALLOWED_ORIGINS = cors_env.split(',')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
