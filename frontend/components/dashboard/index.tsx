@@ -64,7 +64,7 @@ export default function DashboardContent({
   const { data: anomaliesData = [] } = useQuery<AnomalyApi[]>({
     queryKey: ['recentAnomalies'],
     queryFn: async () => {
-      const res = await api.get('/analytics/recent/');
+      const res = await api.get('/analytics/recent-anomalies/');
       return res.data;
     }
   });
@@ -72,7 +72,7 @@ export default function DashboardContent({
   const { data: billData = [] } = useQuery<BillVsTelemetryApi[]>({
     queryKey: ['consumptionIndicator'],
     queryFn: async () => {
-      const res = await api.get('/dashboard/consumption-indicator/');
+      const res = await api.get('/analytics/bill-vs-telemetry/');
       return Array.isArray(res.data) ? res.data : [res.data];
     }
   });
@@ -80,7 +80,7 @@ export default function DashboardContent({
   const { data: monthlyData = [] } = useQuery<MonthlyConsumptionApi[]>({
     queryKey: ['monthlyConsumption'],
     queryFn: async () => {
-      const res = await api.get('/dashboard/monthly-consumption/');
+      const res = await api.get('/iot/monthly-consumption/');
       return res.data;
     }
   });
@@ -116,12 +116,15 @@ export default function DashboardContent({
 
       <section className="rounded-lg border border-line bg-circuit px-8 py-10 mb-12">
         {!currentBill ? (
-          <DashboardCardTemplate title={t('dashboard.projectionLabel')}>
-            <EmptyState 
-              title="No Billing Data" 
-              description="Billing and telemetry data is currently unavailable."
-            />
-          </DashboardCardTemplate>
+          <EmptyState 
+            className="w-full h-full py-16"
+            title="No Billing Data" 
+            description={
+              <>
+                It seems you haven't added a bill yet. <Link href="/bills" className="text-accent hover:underline font-medium">Would you like to add one?</Link>
+              </>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-12 gap-x-12 gap-y-8 items-end">
             <div className="md:col-span-8">
@@ -183,12 +186,11 @@ export default function DashboardContent({
         </div>
 
         {anomaliesData.length === 0 ? (
-          <DashboardCardTemplate title="Anomalies">
-            <EmptyState 
-              title="No Anomalies Detected" 
-              description="There are currently no usage anomalies reported." 
-            />
-          </DashboardCardTemplate>
+          <EmptyState 
+            className="w-full py-12"
+            title="No Anomalies Detected" 
+            description="There are currently no usage anomalies reported." 
+          />
         ) : (
           <ul className="divide-y divide-line border-y border-line">
             {anomaliesData.map(a => (
@@ -220,12 +222,11 @@ export default function DashboardContent({
           <p className="text-sm text-ink-3 mb-8">{t('dashboard.weeklySub')}</p>
 
           {monthlyData.length === 0 ? (
-            <DashboardCardTemplate title="Consumption Trend">
-               <EmptyState 
-                 title="No Consumption Data" 
-                 description="Monthly consumption history is currently empty." 
-               />
-            </DashboardCardTemplate>
+           <EmptyState 
+             className="w-full h-56"
+             title="No Consumption Data" 
+             description="Monthly consumption history is currently empty." 
+           />
           ) : (
             <div className="h-56 flex items-end justify-between gap-3">
               {monthlyData.map(d => {
@@ -254,13 +255,13 @@ export default function DashboardContent({
           )}
         </div>
 
-        <div className="lg:col-span-5 lg:pl-12 lg:border-l lg:border-line">
-          <div className="relative">
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/60 backdrop-blur-sm rounded-lg">
-              <span className="px-4 py-2 bg-elevated border border-line rounded-full text-sm font-semibold text-ink shadow-sm">
-                Coming Soon
-              </span>
-            </div>
+        <div className="lg:col-span-5 lg:pl-12 lg:border-l lg:border-line relative">
+          <div className="absolute inset-0 left-0 lg:left-12 z-10 flex items-center justify-center bg-surface/50 backdrop-blur-[2px]">
+            <span className="text-lg font-semibold text-ink tracking-tight">
+              Coming Soon!
+            </span>
+          </div>
+          <div>
             <h2 className="font-display text-2xl text-ink tracking-tight mb-1">
               {t('dashboard.breakdownTitle')}
             </h2>

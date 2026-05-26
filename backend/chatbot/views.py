@@ -173,6 +173,9 @@ class ChatHistoryView(ListAPIView):
         description="Returns the authenticated user's ChatLog rows, newest first. Supports `?limit=N` (default 50, max 200).",
         responses={200: ChatLogSerializer(many=True)},
     )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
         try:
             limit = int(self.request.query_params.get("limit", 50))

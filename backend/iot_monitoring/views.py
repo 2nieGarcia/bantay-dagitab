@@ -42,23 +42,21 @@ class IoTReadingListView(generics.ListAPIView):
     def get_queryset(self):
         return IoTReading.objects.filter(user=self.request.user).order_by('-timestamp')
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.db import connection
 
-class AnomalyAlertListView(generics.ListAPIView):
-    serializer_class = AnomalyAlertSerializer
-
-    def get_queryset(self):
-        return AnomalyAlert.objects.filter(user=self.request.user).order_by('-timestamp')
-
-
-class AnomalyAlertActiveView(generics.ListAPIView):
-    serializer_class = AnomalyAlertSerializer
-
-    def get_queryset(self):
-        return AnomalyAlert.objects.filter(user=self.request.user, status='active').order_by('-timestamp')
-
-
-class AnomalyAlertResolvedView(generics.ListAPIView):
-    serializer_class = AnomalyAlertSerializer
-
-    def get_queryset(self):
-        return AnomalyAlert.objects.filter(user=self.request.user, status='resolved').order_by('-resolved_at')
+class MonthlyConsumptionView(APIView):
+    @extend_schema(summary="Monthly Consumption (Dashboard)", description="Queries vw_user_monthly_consumption for dashboard display")
+    def get(self, request, *args, **kwargs):
+        user_id = request.user.id
+        with connection.cursor() as cursor:
+            cursor.execute('''
+                SELECT month, kwh 
+                FROM vw_user_monthly_consumption 
+                WHERE user_id = %s
+                ORDER BY month ASC
+            ''', [user_id])
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return Response(results)

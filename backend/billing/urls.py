@@ -3,6 +3,6 @@ from .views import BillCreateView, BillListView, BillOCRUploadView
 
 urlpatterns = [
     path('', BillListView.as_view(), name='bill-list'),
-    path('ingest/', BillCreateView.as_view(), name='bill-create'),
+    path('bills/', BillCreateView.as_view(), name='bill-create'),
     path('ocr-upload/', BillOCRUploadView.as_view(), name='bill-ocr-upload'),
 ]

@@ -7,6 +7,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
 import api from '@/lib/api';
+import Cookies from 'js-cookie';
 
 export default function LoginPage() {
   const { t } = useLang();
@@ -23,8 +24,8 @@ export default function LoginPage() {
       setLoading(true);
       const res = await api.post('/token/', { username: email, password });
       if (res.data.access) {
-        localStorage.setItem('access_token', res.data.access);
-        if (res.data.refresh) localStorage.setItem('refresh_token', res.data.refresh);
+        Cookies.set('access_token', res.data.access, { path: '/' });
+        if (res.data.refresh) Cookies.set('refresh_token', res.data.refresh, { path: '/' });
         router.push('/dashboard');
       }
     } catch {

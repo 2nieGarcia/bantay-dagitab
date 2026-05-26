@@ -28,7 +28,7 @@ export default function RegisterPage() {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      await api.post('/users/', {
+      await api.post('/users/register/', {
         username: email,
         email,
         password,
