@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import api from '@/lib/api';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
@@ -50,6 +52,55 @@ export default function BillsContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadedBills, setUploadedBills } = useBillContext();
   const { t } = useLang();
+  const queryClient = useQueryClient();
+
+  const { data: serverBills = [], isLoading: isLoadingBills } = useQuery({
+    queryKey: ['bills'],
+    queryFn: async () => {
+      const res = await api.get('/billing/');
+      return res.data;
+    },
+  });
+
+  const mappedServerBills: Bill[] = serverBills.map((b: any) => ({
+    id: b.id || b.scan_timestamp,
+    name: `Meralco Bill ${b.billing_period || 'Unknown'}`,
+    status: 'completed',
+    uploadDate: new Date(b.scan_timestamp || Date.now()).toLocaleDateString(),
+    ocrConfidence: 100,
+    extractedData: {
+      accountDetails: {
+        accountNumber: b.meralco_account_number || '',
+        customerName: '',
+        serviceAddress: '',
+        meterNumber: '',
+        confidence: 100,
+      },
+      billingPeriod: {
+        startDate: b.billing_period || '',
+        endDate: '',
+        daysInPeriod: 30,
+        readingDate: b.scan_timestamp || new Date().toISOString(),
+        confidence: 100,
+      },
+      consumption: {
+        previousReading: 0,
+        currentReading: 0,
+        totalkWh: b.total_kwh_consumed || 0,
+        unit: 'kWh',
+        confidence: 100,
+      },
+      charges: [],
+      totalAmount: b.total_bill_php || 0,
+      dueDate: '',
+      confidence: 100,
+    },
+  }));
+
+  const displayBills = [
+    ...uploadedBills.filter(b => b.status === 'processing'),
+    ...mappedServerBills,
+  ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,7 +111,7 @@ export default function BillsContent() {
       const formData = new FormData();
       formData.append('image', file);
       
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/billing/ocr-upload/`, formData, {
+      const res = await api.post('/billing/ocr-upload/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -118,8 +169,8 @@ export default function BillsContent() {
     }
   };
 
-  const handleAccept = async (bill: Bill) => {
-    try {
+  const acceptMutation = useMutation({
+    mutationFn: async (bill: Bill) => {
       const payload = {
         user_account_id: 1,
         scan_timestamp: bill.extractedData.billingPeriod.readingDate,
@@ -128,13 +179,21 @@ export default function BillsContent() {
         total_kwh_consumed: bill.extractedData.consumption.totalkWh,
         total_bill_php: bill.extractedData.totalAmount,
       };
-      // User specifies to POST to /api/billing/bills/
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/billing/bills/`, payload);
-      setUploadedBills(prev => prev.map(b => b.id === bill.id ? { ...b, status: 'completed' } : b));
-    } catch (err) {
+      return api.post('/billing/bills/', payload);
+    },
+    onSuccess: (res, bill) => {
+      setUploadedBills(prev => prev.filter(b => b.id !== bill.id));
+      queryClient.setQueryData(['bills'], (old: any) => [res.data, ...(old || [])]);
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+    },
+    onError: (err) => {
       console.error(err);
       alert('Failed to save bill.');
     }
+  });
+
+  const handleAccept = (bill: Bill) => {
+    acceptMutation.mutate(bill);
   };
 
   return (
@@ -157,14 +216,14 @@ export default function BillsContent() {
         </label>
       </div>
 
-      {uploadedBills.length === 0 ? (
+      {displayBills.length === 0 && !isLoadingBills ? (
         <div className="border border-line rounded-lg bg-surface px-8 py-12 text-center max-w-xl">
           <p className="font-display text-xl text-ink mb-2">{t('bills.empty.title')}</p>
           <p className="text-sm text-ink-2">{t('bills.empty.body')}</p>
         </div>
       ) : (
         <ul className="space-y-4">
-          {uploadedBills.map(bill => {
+          {displayBills.map(bill => {
             const isOpen = expandedBill === bill.id;
             return (
               <li key={bill.id} className="border border-line rounded-lg bg-surface overflow-hidden">
@@ -346,12 +405,15 @@ export default function BillsContent() {
                     </section>
 
                     <div className="flex flex-wrap gap-3 pt-2">
-                      <button 
-                        onClick={() => handleAccept(bill)}
-                        className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors"
-                      >
-                        {t('bills.accept')}
-                      </button>
+                      {bill.status === 'processing' && (
+                        <button 
+                          onClick={() => handleAccept(bill)}
+                          disabled={acceptMutation.isPending}
+                          className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors disabled:opacity-50"
+                        >
+                          {acceptMutation.isPending && acceptMutation.variables?.id === bill.id ? 'Accepting...' : t('bills.accept')}
+                        </button>
+                      )}
                       <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
                         {t('bills.editDetails')}
                       </button>
