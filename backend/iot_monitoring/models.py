@@ -28,7 +28,7 @@ class AnomalyAlert(models.Model):
     ]
 
     alert_id = models.CharField(max_length=100, unique=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='anomaly_alerts')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='iot_alerts')
     device_id = models.CharField(max_length=100)
     timestamp = models.DateTimeField()
     alert_type = models.CharField(max_length=50, choices=ALERT_TYPE_CHOICES)

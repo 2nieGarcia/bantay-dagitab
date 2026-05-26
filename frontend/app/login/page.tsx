@@ -1,12 +1,39 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
+import api from '@/lib/api';
+import Cookies from 'js-cookie';
 
 export default function LoginPage() {
   const { t } = useLang();
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setError('');
+      setLoading(true);
+      const res = await api.post('/token/', { username: email, password });
+      if (res.data.access) {
+        Cookies.set('access_token', res.data.access, { path: '/' });
+        if (res.data.refresh) Cookies.set('refresh_token', res.data.refresh, { path: '/' });
+        router.push('/dashboard');
+      }
+    } catch {
+      setError('Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-page text-ink flex flex-col">
@@ -41,7 +68,8 @@ export default function LoginPage() {
           </div>
 
           <div className="border border-line rounded-lg bg-surface p-8">
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={handleLogin}>
+              {error && <div className="text-red-500 text-sm font-medium">{error}</div>}
               <div>
                 <label htmlFor="email" className="block text-xs uppercase tracking-wider font-medium text-ink-2 mb-2">
                   {t('common.email')}
@@ -49,6 +77,9 @@ export default function LoginPage() {
                 <input
                   id="email"
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   placeholder={t('login.placeholder.email')}
                   className="w-full px-3 py-2.5 rounded-md border border-line-strong bg-page text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   autoComplete="email"
@@ -62,6 +93,9 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                   placeholder={t('login.placeholder.password')}
                   className="w-full px-3 py-2.5 rounded-md border border-line-strong bg-page text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   autoComplete="current-password"
@@ -70,9 +104,10 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-md bg-accent text-accent-ink text-sm font-semibold hover:bg-accent-strong transition-colors mt-2"
+                disabled={loading}
+                className="w-full py-3 rounded-md bg-accent text-accent-ink text-sm font-semibold hover:bg-accent-strong transition-colors mt-2 disabled:opacity-50"
               >
-                {t('login.submit')}
+                {loading ? 'Logging in...' : t('login.submit')}
               </button>
             </form>
 

@@ -1,6 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import api from '@/lib/api';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -8,6 +12,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { useBillContext } from '@/components/shared/bill-context';
 import { useLang } from '@/lib/i18n';
+import type { Bill } from '@/components/shared/types';
 
 function confidenceTone(confidence: number) {
   if (confidence >= 95) return 'text-success';
@@ -43,24 +48,182 @@ function Row({ label, value, full = false }: { label: string; value: React.React
 
 export default function BillsContent() {
   const [expandedBill, setExpandedBill] = useState<number | null>(null);
-  const { uploadedBills } = useBillContext();
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadedBills, setUploadedBills } = useBillContext();
   const { t } = useLang();
+  const queryClient = useQueryClient();
+
+  const { data: serverBills = [], isLoading: isLoadingBills } = useQuery({
+    queryKey: ['bills'],
+    queryFn: async () => {
+      const res = await api.get('/billing/');
+      return res.data;
+    },
+  });
+
+  const mappedServerBills: Bill[] = serverBills.map((b: any) => ({
+    id: b.id || b.scan_timestamp,
+    name: `Meralco Bill ${b.billing_period || 'Unknown'}`,
+    status: 'completed',
+    uploadDate: new Date(b.scan_timestamp || Date.now()).toLocaleDateString(),
+    ocrConfidence: 100,
+    extractedData: {
+      accountDetails: {
+        accountNumber: b.meralco_account_number || '',
+        customerName: '',
+        serviceAddress: '',
+        meterNumber: '',
+        confidence: 100,
+      },
+      billingPeriod: {
+        startDate: b.billing_period || '',
+        endDate: '',
+        daysInPeriod: 30,
+        readingDate: b.scan_timestamp || new Date().toISOString(),
+        confidence: 100,
+      },
+      consumption: {
+        previousReading: 0,
+        currentReading: 0,
+        totalkWh: b.total_kwh_consumed || 0,
+        unit: 'kWh',
+        confidence: 100,
+      },
+      charges: [],
+      totalAmount: b.total_bill_php || 0,
+      dueDate: '',
+      confidence: 100,
+    },
+  }));
+
+  const displayBills = [
+    ...uploadedBills.filter(b => b.status === 'processing'),
+    ...mappedServerBills,
+  ];
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const res = await api.post('/billing/ocr-upload/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (res.data.success) {
+        const data = res.data.extracted_data || {};
+        const newBill: Bill = {
+          id: Date.now(),
+          name: file.name,
+          status: 'processing',
+          uploadDate: new Date().toLocaleDateString(),
+          ocrConfidence: 90,
+          extractedData: {
+            accountDetails: {
+              accountNumber: data.meralco_account_number || '',
+              customerName: '',
+              serviceAddress: '',
+              meterNumber: '',
+              confidence: 90,
+            },
+            billingPeriod: {
+              startDate: data.billing_period || '',
+              endDate: '',
+              daysInPeriod: 30,
+              readingDate: data.scan_timestamp || new Date().toISOString(),
+              confidence: 90,
+            },
+            consumption: {
+              previousReading: 0,
+              currentReading: 0,
+              totalkWh: data.total_kwh_consumed || 0,
+              unit: 'kWh',
+              confidence: 90,
+            },
+            charges: [],
+            totalAmount: data.total_bill_php || 0,
+            dueDate: '',
+            confidence: 90,
+          },
+        };
+        setUploadedBills(prev => [newBill, ...prev]);
+        setExpandedBill(newBill.id);
+      } else {
+        alert(res.data.error_message || 'Failed to process bill image');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload bill.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const acceptMutation = useMutation({
+    mutationFn: async (bill: Bill) => {
+      const payload = {
+        user_account_id: 1,
+        scan_timestamp: bill.extractedData.billingPeriod.readingDate,
+        meralco_account_number: bill.extractedData.accountDetails.accountNumber,
+        billing_period: bill.extractedData.billingPeriod.startDate,
+        total_kwh_consumed: bill.extractedData.consumption.totalkWh,
+        total_bill_php: bill.extractedData.totalAmount,
+      };
+      return api.post('/billing/bills/', payload);
+    },
+    onSuccess: (res, bill) => {
+      setUploadedBills(prev => prev.filter(b => b.id !== bill.id));
+      queryClient.setQueryData(['bills'], (old: any) => [res.data, ...(old || [])]);
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+    },
+    onError: (err) => {
+      console.error(err);
+      alert('Failed to save bill.');
+    }
+  });
+
+  const handleAccept = (bill: Bill) => {
+    acceptMutation.mutate(bill);
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-10">
-        <h1 className="font-display text-4xl text-ink tracking-tight">{t('bills.title')}</h1>
-        <p className="text-sm text-ink-2 mt-2 max-w-xl leading-relaxed">{t('bills.lede')}</p>
+      <div className="mb-10 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-4xl text-ink tracking-tight">{t('bills.title')}</h1>
+          <p className="text-sm text-ink-2 mt-2 max-w-xl leading-relaxed">{t('bills.lede')}</p>
+        </div>
+        <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+          <CloudUploadIcon sx={{ fontSize: 20 }} />
+          {isUploading ? 'Uploading...' : 'Upload Bill'}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
+        </label>
       </div>
 
-      {uploadedBills.length === 0 ? (
+      {displayBills.length === 0 && !isLoadingBills ? (
         <div className="border border-line rounded-lg bg-surface px-8 py-12 text-center max-w-xl">
           <p className="font-display text-xl text-ink mb-2">{t('bills.empty.title')}</p>
           <p className="text-sm text-ink-2">{t('bills.empty.body')}</p>
         </div>
       ) : (
         <ul className="space-y-4">
-          {uploadedBills.map(bill => {
+          {displayBills.map(bill => {
             const isOpen = expandedBill === bill.id;
             return (
               <li key={bill.id} className="border border-line rounded-lg bg-surface overflow-hidden">
@@ -242,9 +405,15 @@ export default function BillsContent() {
                     </section>
 
                     <div className="flex flex-wrap gap-3 pt-2">
-                      <button className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors">
-                        {t('bills.accept')}
-                      </button>
+                      {bill.status === 'processing' && (
+                        <button 
+                          onClick={() => handleAccept(bill)}
+                          disabled={acceptMutation.isPending}
+                          className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors disabled:opacity-50"
+                        >
+                          {acceptMutation.isPending && acceptMutation.variables?.id === bill.id ? 'Accepting...' : t('bills.accept')}
+                        </button>
+                      )}
                       <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
                         {t('bills.editDetails')}
                       </button>

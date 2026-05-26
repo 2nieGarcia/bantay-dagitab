@@ -14,49 +14,8 @@ import { BillProvider } from '@/components/shared/bill-context';
 import { Brand } from '@/components/shared/brand';
 import type { Bill } from '@/components/shared/types';
 import { useLang } from '@/lib/i18n';
-
-const initialBills: Bill[] = [
-  {
-    id: 1,
-    name: 'MERALCO Bill',
-    status: 'completed',
-    uploadDate: 'May 17, 2026',
-    ocrConfidence: 92.5,
-    extractedData: {
-      accountDetails: {
-        accountNumber: '123-456-7890',
-        customerName: 'Juan Dela Cruz',
-        serviceAddress: '123 Main Street, Manila, 1000',
-        meterNumber: 'M-2026-001',
-        confidence: 95,
-      },
-      billingPeriod: {
-        startDate: 'Mar 15, 2026',
-        endDate: 'Apr 14, 2026',
-        daysInPeriod: 30,
-        readingDate: 'Apr 14, 2026',
-        confidence: 98,
-      },
-      consumption: {
-        previousReading: 12450,
-        currentReading: 12641,
-        totalkWh: 191,
-        unit: 'kWh',
-        confidence: 97,
-      },
-      charges: [
-        { description: 'Generation', amount: 1140.5, confidence: 94 },
-        { description: 'Transmission', amount: 185.75, confidence: 92 },
-        { description: 'Distribution', amount: 125.3, confidence: 91 },
-        { description: 'System Loss', amount: 45.5, confidence: 89 },
-        { description: 'Metering', amount: 15.0, confidence: 95 },
-      ],
-      totalAmount: 1482.05,
-      dueDate: 'May 5, 2026',
-      confidence: 96,
-    },
-  },
-];
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 const navItems = [
   { href: '/dashboard', labelKey: 'nav.dashboard', subKey: 'nav.dashboard.sub', Icon: DashboardIcon },
@@ -67,10 +26,19 @@ const navItems = [
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '/';
-  const [uploadedBills, setUploadedBills] = useState<Bill[]>(initialBills);
+  const [uploadedBills, setUploadedBills] = useState<Bill[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const showShell = !['/', '/login', '/register'].includes(pathname);
   const { t } = useLang();
+
+  const { data: profile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const res = await api.get('/users/profile/');
+      return res.data;
+    },
+    enabled: showShell,
+  });
 
   return (
     <BillProvider value={{ uploadedBills, setUploadedBills }}>
@@ -108,12 +76,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             <div className="px-6 py-5 border-t border-line">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-full bg-ink text-ink-inverse flex items-center justify-center text-sm font-semibold font-display">
-                  JD
+                <div className="h-9 w-9 rounded-full bg-ink text-ink-inverse flex items-center justify-center text-sm font-semibold font-display uppercase">
+                  {profile?.user?.first_name?.[0] || profile?.user?.username?.[0] || 'U'}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink truncate">Juan Dela Cruz</p>
-                  <p className="text-xs text-ink-3 tabular">Acct ***3530</p>
+                  <p className="text-sm font-medium text-ink truncate">
+                    {profile?.user?.first_name ? `${profile.user.first_name} ${profile.user.last_name || ''}` : profile?.user?.username || 'User'}
+                  </p>
+                  <p className="text-xs text-ink-3 tabular">Acct ***{profile?.meralco_account_number?.slice(-4) || '----'}</p>
                 </div>
               </div>
             </div>

@@ -85,7 +85,7 @@ const en: Dict = {
   'dashboard.statConsumption': 'Consumption this month',
   'dashboard.statDaily': 'Daily average',
   'dashboard.statRate': 'Rate per kWh',
-  'dashboard.anomaliesTitle': 'Three alerts this week',
+  'dashboard.anomaliesTitle': 'Alerts this week',
   'dashboard.anomaliesSub': 'Unusual readings from your devices.',
   'dashboard.weeklyTitle': 'Use per day',
   'dashboard.weeklySub': 'Last seven days, in kWh.',
@@ -317,7 +317,7 @@ const fil: Dict = {
   'dashboard.statConsumption': 'Konsumo (buwan)',
   'dashboard.statDaily': 'Average per araw',
   'dashboard.statRate': 'Presyo per kWh',
-  'dashboard.anomaliesTitle': 'May tatlong abiso sa linggong ito',
+  'dashboard.anomaliesTitle': 'Mga abiso sa linggong ito',
   'dashboard.anomaliesSub': 'Mga di-pangkaraniwang konsumo ng iyong mga device.',
   'dashboard.weeklyTitle': 'Konsumo bawat araw',
   'dashboard.weeklySub': 'Nakaraang pitong araw, kWh.',
@@ -499,13 +499,6 @@ function interpolate(template: string, vars?: Record<string, string | number>) {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>('en');
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved === 'en' || saved === 'fil') setLangState(saved);
-    } catch {}
-  }, []);
-
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
     try {
@@ -513,6 +506,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       document.documentElement.lang = next === 'fil' ? 'fil' : 'en';
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved === 'en' || saved === 'fil') {
+        setTimeout(() => setLang(saved as Lang), 0);
+      }
+    } catch {}
+  }, [setLang]);
 
   const value = useMemo(
     () => ({
