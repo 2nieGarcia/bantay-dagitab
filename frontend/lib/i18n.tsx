@@ -503,10 +503,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved === 'en' || saved === 'fil') {
-        setTimeout(() => setLangState(saved), 0);
+        setTimeout(() => setLang(saved as Lang), 0);
       }
     } catch {}
-  }, []);
+  }, [setLang]);
 
   const setLang = useCallback((next: Lang) => {
     setLangState(next);

@@ -72,8 +72,68 @@ function LanguageChoice({
   );
 }
 
+import { useState } from 'react';
+import Cookies from 'js-cookie';
+import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
 export default function SettingsContent() {
   const { t, lang, setLang } = useLang();
+  const queryClient = useQueryClient();
+
+  const [isEditingAccount, setIsEditingAccount] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editMeralcoAccount, setEditMeralcoAccount] = useState('');
+
+  const { data: profile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const res = await api.get('/users/profile/');
+      return res.data;
+    },
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async () => {
+      return api.put('/users/profile/', {
+        user: {
+          ...profile?.user,
+          first_name: editFirstName,
+          last_name: editLastName,
+        },
+        first_name: editFirstName,
+        last_name: editLastName,
+        meralco_account_number: editMeralcoAccount,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      setIsEditingAccount(false);
+    },
+  });
+
+  const handleEditClick = () => {
+    setEditFirstName(profile?.user?.first_name || '');
+    setEditLastName(profile?.user?.last_name || '');
+    setEditMeralcoAccount(profile?.meralco_account_number || '');
+    setIsEditingAccount(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingAccount(false);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate();
+  };
+
+  const handleLogout = () => {
+    Cookies.remove('access_token');
+    Cookies.remove('refresh_token');
+    window.location.href = '/login';
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -109,15 +169,71 @@ export default function SettingsContent() {
           title={t('settings.section.account')}
           hint={t('settings.section.accountSub')}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-ink">{t('settings.account.profile')}</p>
-              <p className="text-sm text-ink-3 mt-1">{t('settings.account.profileBody')}</p>
+          {isEditingAccount ? (
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">First name</label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className="w-full px-3 py-2 border border-line-strong rounded-md text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">Last name</label>
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className="w-full px-3 py-2 border border-line-strong rounded-md text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1">Meralco Account Number</label>
+                <input
+                  type="text"
+                  value={editMeralcoAccount}
+                  onChange={(e) => setEditMeralcoAccount(e.target.value)}
+                  className="w-full px-3 py-2 border border-line-strong rounded-md text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
+                />
+              </div>
+              <div className="flex items-center gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateProfileMutation.isPending}
+                  className="px-4 py-2 rounded-md bg-accent text-accent-ink text-sm font-medium hover:bg-accent-strong transition-colors disabled:opacity-50"
+                >
+                  {updateProfileMutation.isPending ? 'Saving...' : t('common.save')}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-ink">
+                  {profile?.user?.first_name ? `${profile.user.first_name} ${profile.user.last_name || ''}` : profile?.user?.username || t('settings.account.profile')}
+                </p>
+                <p className="text-sm text-ink-3 mt-1">{profile?.user?.email || t('settings.account.profileBody')}</p>
+                <p className="text-sm text-ink-3 mt-1 tabular">Meralco Account: {profile?.meralco_account_number || 'Not set'}</p>
+              </div>
+              <button 
+                onClick={handleEditClick}
+                className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors"
+              >
+                {t('settings.account.editProfile')}
+              </button>
             </div>
-            <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
-              {t('settings.account.editProfile')}
-            </button>
-          </div>
+          )}
         </SettingsSection>
 
         <SettingsSection
@@ -203,7 +319,7 @@ export default function SettingsContent() {
           title={t('settings.section.signOut')}
           hint={t('settings.section.signOutSub')}
         >
-          <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
+          <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
             <LogoutIcon sx={{ fontSize: 18 }} />
             {t('settings.signOut.cta')}
           </button>
