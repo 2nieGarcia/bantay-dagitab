@@ -10,6 +10,16 @@ class BillImageUploadSerializer(serializers.Serializer):
         required=False
     )
 
+
+class BillIngestRequestSerializer(serializers.Serializer):
+    image = serializers.ImageField(help_text="MERALCO bill image (JPG/PNG).")
+
+
+class BillIngestOCRMetaSerializer(serializers.Serializer):
+    needs_manual_verification = serializers.BooleanField()
+    extracted = serializers.DictField()
+    raw_text_preview = serializers.CharField(allow_null=True, required=False)
+
 class OCRExtractedDataSerializer(serializers.Serializer):
     meralco_account_number = serializers.CharField(allow_null=True, required=False)
     billing_period = serializers.CharField(allow_null=True, required=False)
