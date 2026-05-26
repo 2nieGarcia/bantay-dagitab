@@ -2,25 +2,44 @@
 
 import ComputerIcon from '@mui/icons-material/Computer';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
-import ThermostatIcon from '@mui/icons-material/Thermostat';
 import PowerIcon from '@mui/icons-material/Power';
 import AcUnitIcon from '@mui/icons-material/AcUnit';
 import KitchenIcon from '@mui/icons-material/Kitchen';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { DashboardCardTemplate } from '@/components/templates/DashboardCardTemplate';
+import { EmptyState } from '@/components/templates/EmptyState';
 
-type Anomaly = {
-  id: string;
-  deviceKey: string;
-  findingKey: string;
-  extraPeso: number;
+// API Response Types
+type AnomalyApi = {
+  alert_id: string;
+  user_id: number;
+  device_id: string;
+  timestamp: string;
+  alert_type: string;
+  expected_wattage_range: string;
+  actual_wattage: number;
+  message: string;
 };
 
-const anomalies: Anomaly[] = [
-  { id: 'a1', deviceKey: 'dashboard.anomaly1.device', findingKey: 'dashboard.anomaly1.finding', extraPeso: 340 },
-  { id: 'a2', deviceKey: 'dashboard.anomaly2.device', findingKey: 'dashboard.anomaly2.finding', extraPeso: 215 },
-  { id: 'a3', deviceKey: 'dashboard.anomaly3.device', findingKey: 'dashboard.anomaly3.finding', extraPeso: 95 },
-];
+type BillVsTelemetryApi = {
+  bill_id: number;
+  user_id: number;
+  meralco_account_number: string;
+  billing_period: string;
+  billed_kwh: number;
+  total_bill_php: number;
+  telemetry_kwh: number;
+  kwh_variance: number;
+};
+
+type MonthlyConsumptionApi = {
+  user_id: number;
+  month: string;
+  kwh: number;
+};
 
 const devices = [
   { nameKey: 'dashboard.device.fridge', noteKey: 'dashboard.device.fridgeNote', kwh: 78, peso: 1090, Icon: KitchenIcon },
@@ -29,19 +48,6 @@ const devices = [
   { nameKey: 'dashboard.device.electronics', noteKey: 'dashboard.device.electronicsNote', kwh: 32, peso: 445, Icon: ComputerIcon },
   { nameKey: 'dashboard.device.other', noteKey: 'dashboard.device.otherNote', kwh: 24, peso: 335, Icon: PowerIcon },
 ];
-
-const totalKwh = devices.reduce((s, d) => s + d.kwh, 0);
-
-const weekly = [
-  { day: 'Mon', kwh: 7.8 },
-  { day: 'Tue', kwh: 8.4 },
-  { day: 'Wed', kwh: 7.2 },
-  { day: 'Thu', kwh: 9.1 },
-  { day: 'Fri', kwh: 11.4 },
-  { day: 'Sat', kwh: 12.6 },
-  { day: 'Sun', kwh: 10.2 },
-];
-const maxKwh = Math.max(...weekly.map(d => d.kwh));
 
 export default function DashboardContent({
   userName,
@@ -53,6 +59,38 @@ export default function DashboardContent({
   const { t } = useLang();
   const ctx = t('dashboard.projectionContext', { amount: '__SIGNAL__' });
   const [ctxBefore, ctxAfter] = ctx.split('__SIGNAL__');
+
+  // React Query Fetchers
+  const { data: anomaliesData = [] } = useQuery<AnomalyApi[]>({
+    queryKey: ['recentAnomalies'],
+    queryFn: async () => {
+      const res = await axios.get('/api/analytics/recent-anomalies/');
+      return res.data;
+    }
+  });
+
+  const { data: billData = [] } = useQuery<BillVsTelemetryApi[]>({
+    queryKey: ['billVsTelemetry'],
+    queryFn: async () => {
+      const res = await axios.get('/api/analytics/bill-vs-telemetry/');
+      return res.data;
+    }
+  });
+
+  const { data: monthlyData = [] } = useQuery<MonthlyConsumptionApi[]>({
+    queryKey: ['monthlyConsumption'],
+    queryFn: async () => {
+      const res = await axios.get('/api/iot/monthly-consumption/');
+      return res.data;
+    }
+  });
+
+  const currentBill = billData.length > 0 ? billData[0] : null;
+  const totalBillPhp = currentBill?.total_bill_php || 0;
+  const kwhVariance = currentBill?.kwh_variance || 0;
+  const totalKwh = monthlyData.reduce((s, d) => s + d.kwh, 0) || devices.reduce((s, d) => s + d.kwh, 0);
+
+  const maxKwh = monthlyData.length > 0 ? Math.max(...monthlyData.map(d => d.kwh)) : 1;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -77,49 +115,58 @@ export default function DashboardContent({
       </div>
 
       <section className="rounded-lg border border-line bg-circuit px-8 py-10 mb-12">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-x-12 gap-y-8 items-end">
-          <div className="md:col-span-8">
-            <p className="text-xs uppercase tracking-[0.18em] font-semibold text-accent mb-3">
-              {t('dashboard.projectionLabel')}
-            </p>
-            <p className="font-readout text-7xl md:text-8xl text-ink leading-none">
-              <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal font-sans">₱</span>
-              2,847
-            </p>
-            <p className="text-base md:text-lg text-ink-2 mt-6 max-w-xl leading-relaxed">
-              {ctxBefore}
-              <span className="font-readout text-signal-strong">₱430</span>
-              {ctxAfter}
-            </p>
-          </div>
+        {!currentBill ? (
+          <DashboardCardTemplate title={t('dashboard.projectionLabel')}>
+            <EmptyState 
+              title="No Billing Data" 
+              description="Billing and telemetry data is currently unavailable."
+            />
+          </DashboardCardTemplate>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-x-12 gap-y-8 items-end">
+            <div className="md:col-span-8">
+              <p className="text-xs uppercase tracking-[0.18em] font-semibold text-accent mb-3">
+                {t('dashboard.projectionLabel')}
+              </p>
+              <p className="font-readout text-7xl md:text-8xl text-ink leading-none">
+                <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal font-sans">₱</span>
+                {totalBillPhp.toLocaleString()}
+              </p>
+              <p className="text-base md:text-lg text-ink-2 mt-6 max-w-xl leading-relaxed">
+                {ctxBefore}
+                <span className="font-readout text-signal-strong">₱{kwhVariance}</span>
+                {ctxAfter}
+              </p>
+            </div>
 
-          <div className="md:col-span-4 grid grid-cols-3 md:grid-cols-1 gap-5 md:gap-6 md:border-l md:border-line-strong md:pl-10">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
-                {t('dashboard.statConsumption')}
-              </p>
-              <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
-                {totalKwh} <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
-                {t('dashboard.statDaily')}
-              </p>
-              <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
-                9.3 <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
-                {t('dashboard.statRate')}
-              </p>
-              <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
-                <span className="text-ink-3 text-base font-sans font-normal">₱</span>12.16
-              </p>
+            <div className="md:col-span-4 grid grid-cols-3 md:grid-cols-1 gap-5 md:gap-6 md:border-l md:border-line-strong md:pl-10">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
+                  {t('dashboard.statConsumption')}
+                </p>
+                <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
+                  {totalKwh} <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
+                  {t('dashboard.statDaily')}
+                </p>
+                <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
+                  {(totalKwh / 30).toFixed(1)} <span className="text-sm text-ink-3 font-sans font-normal">kWh</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-ink-3 font-semibold">
+                  {t('dashboard.statRate')}
+                </p>
+                <p className="font-readout text-2xl text-ink mt-1.5 leading-none">
+                  <span className="text-ink-3 text-base font-sans font-normal">₱</span>{(totalBillPhp / (totalKwh || 1)).toFixed(2)}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </section>
 
       <section className="mb-12">
@@ -135,25 +182,34 @@ export default function DashboardContent({
           </Link>
         </div>
 
-        <ul className="divide-y divide-line border-y border-line">
-          {anomalies.map(a => (
-            <li key={a.id} className="py-5 flex gap-5 items-start">
-              <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-signal-soft text-signal-strong text-sm font-semibold">
-                !
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-ink">{t(a.deviceKey)}</p>
-                <p className="text-sm text-ink-2 mt-1 leading-relaxed">{t(a.findingKey)}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-xs text-ink-3">{t('dashboard.extraOnBill')}</p>
-                <p className="font-readout text-xl text-signal-strong mt-0.5 leading-none">
-                  +₱{a.extraPeso}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {anomaliesData.length === 0 ? (
+          <DashboardCardTemplate title="Anomalies">
+            <EmptyState 
+              title="No Anomalies Detected" 
+              description="There are currently no usage anomalies reported." 
+            />
+          </DashboardCardTemplate>
+        ) : (
+          <ul className="divide-y divide-line border-y border-line">
+            {anomaliesData.map(a => (
+              <li key={a.alert_id} className="py-5 flex gap-5 items-start">
+                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-signal-soft text-signal-strong text-sm font-semibold">
+                  !
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-ink">{a.device_id}</p>
+                  <p className="text-sm text-ink-2 mt-1 leading-relaxed">{a.message}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs text-ink-3">Actual / Expected</p>
+                  <p className="font-readout text-xl text-signal-strong mt-0.5 leading-none">
+                    {a.actual_wattage} / {a.expected_wattage_range} W
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-12 mb-12 pb-12 border-b border-line">
@@ -163,28 +219,39 @@ export default function DashboardContent({
           </h2>
           <p className="text-sm text-ink-3 mb-8">{t('dashboard.weeklySub')}</p>
 
-          <div className="h-56 flex items-end justify-between gap-3">
-            {weekly.map(d => {
-              const heightPct = (d.kwh / maxKwh) * 100;
-              const isPeak = d.kwh === maxKwh;
-              return (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-2 min-w-0">
-                  <span className={`text-xs font-readout ${isPeak ? 'text-accent-strong' : 'text-ink-2'}`}>
-                    {d.kwh.toFixed(1)}
-                  </span>
-                  <div className="w-full bg-elevated rounded-sm relative" style={{ height: '180px' }}>
-                    <div
-                      className={`absolute bottom-0 left-0 right-0 rounded-sm transition-[height] duration-300 ${
-                        isPeak ? 'bg-accent-strong' : 'bg-accent'
-                      }`}
-                      style={{ height: `${heightPct}%` }}
-                    />
+          {monthlyData.length === 0 ? (
+            <DashboardCardTemplate title="Consumption Trend">
+               <EmptyState 
+                 title="No Consumption Data" 
+                 description="Monthly consumption history is currently empty." 
+               />
+            </DashboardCardTemplate>
+          ) : (
+            <div className="h-56 flex items-end justify-between gap-3">
+              {monthlyData.map(d => {
+                const heightPct = (d.kwh / maxKwh) * 100;
+                const isPeak = d.kwh === maxKwh;
+                return (
+                  <div key={d.month} className="flex-1 flex flex-col items-center gap-2 min-w-0">
+                    <span className={`text-xs font-readout ${isPeak ? 'text-accent-strong' : 'text-ink-2'}`}>
+                      {d.kwh.toFixed(1)}
+                    </span>
+                    <div className="w-full bg-elevated rounded-sm relative" style={{ height: '180px' }}>
+                      <div
+                        className={`absolute bottom-0 left-0 right-0 rounded-sm transition-[height] duration-300 ${
+                          isPeak ? 'bg-accent-strong' : 'bg-accent'
+                        }`}
+                        style={{ height: `${heightPct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-ink-3">
+                      {new Date(d.month).toLocaleString('default', { month: 'short' })}
+                    </span>
                   </div>
-                  <span className="text-xs text-ink-3">{d.day}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-5 lg:pl-12 lg:border-l lg:border-line">
@@ -195,7 +262,7 @@ export default function DashboardContent({
 
           <ul className="space-y-4">
             {devices.map(d => {
-              const pct = (d.kwh / totalKwh) * 100;
+              const pct = totalKwh > 0 ? (d.kwh / totalKwh) * 100 : 0;
               return (
                 <li key={d.nameKey}>
                   <div className="flex items-center gap-3 mb-1.5">
