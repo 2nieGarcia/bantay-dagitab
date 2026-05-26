@@ -1,12 +1,48 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
+import api from '@/lib/api';
 
 export default function RegisterPage() {
   const { t } = useLang();
+  const router = useRouter();
+  
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setError('');
+      setLoading(true);
+      
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      await api.post('/users/', {
+        username: email,
+        email,
+        password,
+        first_name: firstName,
+        last_name: lastName
+      });
+      
+      router.push('/login');
+    } catch {
+      setError('Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-page text-ink flex flex-col">
@@ -41,7 +77,8 @@ export default function RegisterPage() {
           </div>
 
           <div className="border border-line rounded-lg bg-surface p-8">
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={handleRegister}>
+              {error && <div className="text-red-500 text-sm font-medium">{error}</div>}
               <div>
                 <label htmlFor="name" className="block text-xs uppercase tracking-wider font-medium text-ink-2 mb-2">
                   {t('common.fullName')}
@@ -49,6 +86,9 @@ export default function RegisterPage() {
                 <input
                   id="name"
                   type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                   placeholder="Juan Dela Cruz"
                   className="w-full px-3 py-2.5 rounded-md border border-line-strong bg-page text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   autoComplete="name"
@@ -62,6 +102,9 @@ export default function RegisterPage() {
                 <input
                   id="email"
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   placeholder={t('login.placeholder.email')}
                   className="w-full px-3 py-2.5 rounded-md border border-line-strong bg-page text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   autoComplete="email"
@@ -75,6 +118,9 @@ export default function RegisterPage() {
                 <input
                   id="password"
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                   placeholder={t('login.placeholder.password')}
                   className="w-full px-3 py-2.5 rounded-md border border-line-strong bg-page text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   autoComplete="new-password"
@@ -84,6 +130,7 @@ export default function RegisterPage() {
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
+                  required
                   className="h-4 w-4 mt-0.5 rounded border-line-strong accent-(--color-accent) shrink-0"
                 />
                 <span className="text-sm text-ink-2 leading-relaxed">{t('register.terms')}</span>
@@ -91,9 +138,10 @@ export default function RegisterPage() {
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-md bg-accent text-accent-ink text-sm font-semibold hover:bg-accent-strong transition-colors mt-2"
+                disabled={loading}
+                className="w-full py-3 rounded-md bg-accent text-accent-ink text-sm font-semibold hover:bg-accent-strong transition-colors mt-2 disabled:opacity-50"
               >
-                {t('register.submit')}
+                {loading ? 'Registering...' : t('register.submit')}
               </button>
             </form>
 
