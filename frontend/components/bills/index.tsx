@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import axios from 'axios';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -8,6 +10,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { useBillContext } from '@/components/shared/bill-context';
 import { useLang } from '@/lib/i18n';
+import type { Bill } from '@/components/shared/types';
 
 function confidenceTone(confidence: number) {
   if (confidence >= 95) return 'text-success';
@@ -43,14 +46,115 @@ function Row({ label, value, full = false }: { label: string; value: React.React
 
 export default function BillsContent() {
   const [expandedBill, setExpandedBill] = useState<number | null>(null);
-  const { uploadedBills } = useBillContext();
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadedBills, setUploadedBills } = useBillContext();
   const { t } = useLang();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/billing/ocr-upload/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (res.data.success) {
+        const data = res.data.extracted_data || {};
+        const newBill: Bill = {
+          id: Date.now(),
+          name: file.name,
+          status: 'processing',
+          uploadDate: new Date().toLocaleDateString(),
+          ocrConfidence: 90,
+          extractedData: {
+            accountDetails: {
+              accountNumber: data.meralco_account_number || '',
+              customerName: '',
+              serviceAddress: '',
+              meterNumber: '',
+              confidence: 90,
+            },
+            billingPeriod: {
+              startDate: data.billing_period || '',
+              endDate: '',
+              daysInPeriod: 30,
+              readingDate: data.scan_timestamp || new Date().toISOString(),
+              confidence: 90,
+            },
+            consumption: {
+              previousReading: 0,
+              currentReading: 0,
+              totalkWh: data.total_kwh_consumed || 0,
+              unit: 'kWh',
+              confidence: 90,
+            },
+            charges: [],
+            totalAmount: data.total_bill_php || 0,
+            dueDate: '',
+            confidence: 90,
+          },
+        };
+        setUploadedBills(prev => [newBill, ...prev]);
+        setExpandedBill(newBill.id);
+      } else {
+        alert(res.data.error_message || 'Failed to process bill image');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload bill.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAccept = async (bill: Bill) => {
+    try {
+      const payload = {
+        user_account_id: 1,
+        scan_timestamp: bill.extractedData.billingPeriod.readingDate,
+        meralco_account_number: bill.extractedData.accountDetails.accountNumber,
+        billing_period: bill.extractedData.billingPeriod.startDate,
+        total_kwh_consumed: bill.extractedData.consumption.totalkWh,
+        total_bill_php: bill.extractedData.totalAmount,
+      };
+      // User specifies to POST to /api/billing/bills/
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/billing/bills/`, payload);
+      setUploadedBills(prev => prev.map(b => b.id === bill.id ? { ...b, status: 'completed' } : b));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save bill.');
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-10">
-        <h1 className="font-display text-4xl text-ink tracking-tight">{t('bills.title')}</h1>
-        <p className="text-sm text-ink-2 mt-2 max-w-xl leading-relaxed">{t('bills.lede')}</p>
+      <div className="mb-10 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-4xl text-ink tracking-tight">{t('bills.title')}</h1>
+          <p className="text-sm text-ink-2 mt-2 max-w-xl leading-relaxed">{t('bills.lede')}</p>
+        </div>
+        <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+          <CloudUploadIcon sx={{ fontSize: 20 }} />
+          {isUploading ? 'Uploading...' : 'Upload Bill'}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
+        </label>
       </div>
 
       {uploadedBills.length === 0 ? (
@@ -242,7 +346,10 @@ export default function BillsContent() {
                     </section>
 
                     <div className="flex flex-wrap gap-3 pt-2">
-                      <button className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors">
+                      <button 
+                        onClick={() => handleAccept(bill)}
+                        className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors"
+                      >
                         {t('bills.accept')}
                       </button>
                       <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
