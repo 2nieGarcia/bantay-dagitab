@@ -341,3 +341,37 @@ The key architectural invariant across all phases is the **separation of concern
 6. **Document the rationale for every threshold and parameter** (anomaly k, α in exponential smoothing, gap-filling limit). These values will be questioned later, and the reasoning should not live only in someone's memory. A `config/README.md` file explaining each parameter is sufficient.
 
 The architecture described here is deliberately straightforward. It favors clarity and debuggability over elegance, and it accepts that some manual steps (retraining, threshold tuning) are acceptable in early stages. This foundation can support years of incremental improvement without ever requiring a rewrite.
+
+---
+
+## Implementation Status (Completed Items)
+
+This section summarizes the work already completed in the ML folder so the foundational architecture above remains unchanged.
+
+### Pipeline Stages
+
+- Stage 1 (Ingestion): FastAPI ingestion service with file-based and PostgreSQL ingestion paths implemented.
+- Stage 2 (Preprocessing): File mode and PostgreSQL mode implemented; processed flag updates supported.
+- Stage 3 (Feature Engineering): Baseline + advanced-lite feature engineering implemented.
+- Stage 4 (Model Training): Six models implemented with walk-forward validation.
+- Stage 5 (Evaluation): Anomaly detection F1 and Diebold-Mariano comparisons implemented; evaluation reports generated.
+- Stage 6 (Deployment): Inference worker implemented; writes predictions and alerts to PostgreSQL.
+- Stage 7 (Monitoring): Daily report generation and email alerting implemented.
+
+### Data and Database
+
+- PostgreSQL schema defined in init_tables.sql with all required tables and indexes.
+- Supabase-backed DATABASE_URL configured via .env.
+- IoT and OCR seed scripts available (seed_postgres.py).
+- Ingestion DB endpoints implemented: /db/stats, /db/devices, /db/readings/{device_id}.
+- JOIN endpoint implemented: /db/readings-with-bills (IoT readings joined to OCR bills by user and billing month).
+
+### Artifacts and Outputs
+
+- Prediction plot saved: output/reports/prediction_sample.png.
+- Final summary JSON saved: output/reports/final_summary.json.
+- Evaluation reports, ranking CSVs, and metrics logs stored under output/reports/.
+
+### Project Hygiene
+
+- Root gitignore updated to exclude ml/data/, ml/output/, ml/models/.

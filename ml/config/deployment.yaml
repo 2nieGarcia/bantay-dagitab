@@ -1,37 +1,56 @@
-# config/deployment.yaml
-# Deployment configuration for inference worker
-# Read by src/deployment/inference_worker.py
-
 deployment:
-  model_path: "models/deployed/model.joblib"
-  model_type: "lightgbm"  # Options: persistence, median, ses, lightgbm, holt_winters, lstm
-  previous_model_path: "models/deployed/model_previous.joblib"
+  model_path: models/deployed/model.joblib
+  model_type: lightgbm
+  previous_model_path: models/deployed/model_previous.joblib
 
 database:
-  # SQLite used for baseline; path is relative to project root
-  path: "data/deployment.db"
+  path: data/deployment.db
 
 anomaly:
-  # k * sigma_residuals per device — populated from evaluation output
-  # Keyed by device_id; if a device is missing, uses the 'default' entry
   thresholds:
     default:
-      k: 3.0
-      sigma_residuals: 100.0
+      k: 1.8
+      sigma_residuals: 289.95
     meter_manila_001:
-      k: 2.5
+      k: 2.8
       sigma_residuals: 85.0
-
-  # Number of consecutive readings exceeding threshold to trigger alert
+    meter_manila_101:
+      k: 1.8
+      sigma_residuals: 199.88
+    meter_manila_102:
+      k: 1.8
+      sigma_residuals: 360.8
+    meter_manila_103:
+      k: 1.8
+      sigma_residuals: 305.66
+    meter_manila_104:
+      k: 1.8
+      sigma_residuals: 230.95
+    meter_manila_105:
+      k: 1.8
+      sigma_residuals: 207.58
+    meter_manila_106:
+      k: 1.8
+      sigma_residuals: 300.52
+    meter_manila_107:
+      k: 1.8
+      sigma_residuals: 376.4
+    meter_manila_108:
+      k: 1.8
+      sigma_residuals: 279.38
+    meter_manila_109:
+      k: 2.16
+      sigma_residuals: 263.4
+    meter_manila_110:
+      k: 2.28
+      sigma_residuals: 305.14
   sustained_window: 3
 
 inference:
-  # How far back to look for new readings (minutes)
   lookback_minutes: 2000000
-
-  # Batch size for processing
   batch_size: 1000
+  history_days: 3650
 
 logging:
-  level: "INFO"
+  level: INFO
   predictions_log: true
