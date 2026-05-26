@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
 
             CREATE OR REPLACE VIEW vw_recent_anomalies AS
             SELECT
-                a.id AS alert_id, a.user_id, p.device_id, a.timestamp,
+                a.alert_id, a.user_id, p.device_id, a.timestamp,
                 a.alert_type, a.expected_wattage_range, a.actual_wattage, a.message
             FROM analytics_anomalyalert a
             JOIN users_profile p ON p.user_id = a.user_id
