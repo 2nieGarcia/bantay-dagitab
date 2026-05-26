@@ -8,7 +8,7 @@ import KitchenIcon from '@mui/icons-material/Kitchen';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '@/lib/api';
 import { DashboardCardTemplate } from '@/components/templates/DashboardCardTemplate';
 import { EmptyState } from '@/components/templates/EmptyState';
 
@@ -64,23 +64,23 @@ export default function DashboardContent({
   const { data: anomaliesData = [] } = useQuery<AnomalyApi[]>({
     queryKey: ['recentAnomalies'],
     queryFn: async () => {
-      const res = await axios.get('/api/analytics/recent-anomalies/');
+      const res = await api.get('/analytics/recent/');
       return res.data;
     }
   });
 
   const { data: billData = [] } = useQuery<BillVsTelemetryApi[]>({
-    queryKey: ['billVsTelemetry'],
+    queryKey: ['consumptionIndicator'],
     queryFn: async () => {
-      const res = await axios.get('/api/analytics/bill-vs-telemetry/');
-      return res.data;
+      const res = await api.get('/dashboard/consumption-indicator/');
+      return Array.isArray(res.data) ? res.data : [res.data];
     }
   });
 
   const { data: monthlyData = [] } = useQuery<MonthlyConsumptionApi[]>({
     queryKey: ['monthlyConsumption'],
     queryFn: async () => {
-      const res = await axios.get('/api/iot/monthly-consumption/');
+      const res = await api.get('/dashboard/monthly-consumption/');
       return res.data;
     }
   });
@@ -255,35 +255,42 @@ export default function DashboardContent({
         </div>
 
         <div className="lg:col-span-5 lg:pl-12 lg:border-l lg:border-line">
-          <h2 className="font-display text-2xl text-ink tracking-tight mb-1">
-            {t('dashboard.breakdownTitle')}
-          </h2>
-          <p className="text-sm text-ink-3 mb-6">{t('dashboard.breakdownSub')}</p>
+          <div className="relative">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/60 backdrop-blur-sm rounded-lg">
+              <span className="px-4 py-2 bg-elevated border border-line rounded-full text-sm font-semibold text-ink shadow-sm">
+                Coming Soon
+              </span>
+            </div>
+            <h2 className="font-display text-2xl text-ink tracking-tight mb-1">
+              {t('dashboard.breakdownTitle')}
+            </h2>
+            <p className="text-sm text-ink-3 mb-6">{t('dashboard.breakdownSub')}</p>
 
-          <ul className="space-y-4">
-            {devices.map(d => {
-              const pct = totalKwh > 0 ? (d.kwh / totalKwh) * 100 : 0;
-              return (
-                <li key={d.nameKey}>
-                  <div className="flex items-center gap-3 mb-1.5">
-                    <d.Icon sx={{ fontSize: 18, color: 'var(--color-ink-3)' }} />
-                    <span className="text-sm font-medium text-ink flex-1 min-w-0 truncate">
-                      {t(d.nameKey)}
-                    </span>
-                    <span className="text-sm font-semibold text-ink tabular">₱{d.peso}</span>
-                  </div>
-                  <div className="flex items-center gap-3 pl-7">
-                    <div className="flex-1 h-1 bg-elevated rounded-full overflow-hidden">
-                      <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+            <ul className="space-y-4">
+              {devices.map(d => {
+                const pct = totalKwh > 0 ? (d.kwh / totalKwh) * 100 : 0;
+                return (
+                  <li key={d.nameKey}>
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <d.Icon sx={{ fontSize: 18, color: 'var(--color-ink-3)' }} />
+                      <span className="text-sm font-medium text-ink flex-1 min-w-0 truncate">
+                        {t(d.nameKey)}
+                      </span>
+                      <span className="text-sm font-semibold text-ink tabular">₱{d.peso}</span>
                     </div>
-                    <span className="text-xs text-ink-3 tabular w-20 text-right">
-                      {d.kwh} kWh
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="flex items-center gap-3 pl-7">
+                      <div className="flex-1 h-1 bg-elevated rounded-full overflow-hidden">
+                        <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs text-ink-3 tabular w-20 text-right">
+                        {d.kwh} kWh
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       </section>
 
