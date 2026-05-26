@@ -1,8 +1,38 @@
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Bill
-from .serializers import BillSerializer
+from .serializers import BillSerializer, BillImageUploadSerializer, OCRResultSerializer
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExample
+from .ocr_service import process_bill_image
+
+class BillOCRUploadView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = (MultiPartParser, FormParser)
+
+    @extend_schema(
+        summary="OCR Parse Image (Preview Mode)",
+        description="Upload a MERALCO bill image to parse fields via OCR. Returns the parsed data for manual verification but DOES NOT save to the database.",
+        request=BillImageUploadSerializer,
+        responses={200: OCRResultSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = BillImageUploadSerializer(data=request.data)
+        if serializer.is_valid():
+            image_file = serializer.validated_data['image']
+            
+            # Pass to the service layer for OCR extraction
+            result = process_bill_image(image_file)
+            
+            if result.get("success"):
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @extend_schema_view(
     post=extend_schema(
