@@ -96,8 +96,15 @@ DATABASES = {
         os.environ.get("DATABASE_URL"),
         conn_max_age=600,
         conn_health_checks=True,
+    ),
+    'parallel_schema': dj_database_url.parse(
+        os.environ.get("PARALLEL_DATABASE_URL", os.environ.get("DATABASE_URL")),
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
+
+DATABASE_ROUTERS = ['core.routers.ParallelSchemaRouter']
 
 
 # Password validation
@@ -142,10 +149,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ORIGIN_WHITELIST = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
+# Parse CORS origins from .env (e.g., http://localhost:3000,https://my-frontend.vercel.app)
+cors_env = os.environ.get('CORS_ORIGIN_WHITELIST', 'http://localhost:3000,http://127.0.0.1:3000')
+CORS_ORIGIN_WHITELIST = cors_env.split(',')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
