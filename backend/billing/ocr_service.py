@@ -1,29 +1,67 @@
+import re
+
+import cv2
+import numpy as np
 import pytesseract
 from PIL import Image
-import re
 from django.utils import timezone
+
+
+def _preprocess_with_opencv(image_file):
+    """
+    OpenCV pre-processing pipeline per paper §III.A.2 / §IV.C.1:
+    grayscale -> bilateral denoise -> deskew -> Otsu threshold.
+    Returns a PIL.Image suitable for pytesseract.
+    """
+    image_file.seek(0)
+    file_bytes = np.frombuffer(image_file.read(), dtype=np.uint8)
+    bgr = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    if bgr is None:
+        raise ValueError("Could not decode image bytes as an image.")
+
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    denoised = cv2.bilateralFilter(gray, d=9, sigmaColor=75, sigmaSpace=75)
+
+    inverted = cv2.bitwise_not(denoised)
+    coords = np.column_stack(np.where(inverted > 0))
+    if coords.size:
+        angle = cv2.minAreaRect(coords)[-1]
+        if angle < -45:
+            angle = -(90 + angle)
+        else:
+            angle = -angle
+        if abs(angle) > 0.5:
+            h, w = denoised.shape[:2]
+            center = (w // 2, h // 2)
+            rot = cv2.getRotationMatrix2D(center, angle, 1.0)
+            denoised = cv2.warpAffine(
+                denoised, rot, (w, h),
+                flags=cv2.INTER_CUBIC,
+                borderMode=cv2.BORDER_REPLICATE,
+            )
+
+    _, thresh = cv2.threshold(
+        denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+    return Image.fromarray(thresh)
+
 
 def process_bill_image(image_file):
     """
-    Processes an uploaded image of a MERALCO bill using Tesseract OCR.
-    Extracts key fields and returns a dictionary with the parsed data
-    and a confidence/verification flag.
+    Processes an uploaded MERALCO bill image: OpenCV pre-processing followed by
+    Tesseract OCR, then regex extraction of the Contract B fields.
     """
     try:
-        # Open the image file using Pillow
-        img = Image.open(image_file)
-        
-        # Extract raw text via Tesseract
-        # Note: In production on Render/Docker, tesseract-ocr is installed in the OS.
-        raw_text = pytesseract.image_to_string(img)
-        
+        preprocessed = _preprocess_with_opencv(image_file)
+        raw_text = pytesseract.image_to_string(preprocessed)
         return parse_extracted_text(raw_text)
     except Exception as e:
         return {
             "success": False,
             "error_message": f"Failed to process image: {str(e)}",
-            "needs_manual_verification": True
+            "needs_manual_verification": True,
         }
+
 
 def parse_extracted_text(text):
     """
@@ -36,31 +74,30 @@ def parse_extracted_text(text):
         "total_bill_php": None,
         "scan_timestamp": timezone.now().isoformat(),
     }
-    
+
     needs_manual_verification = False
-    
-    # Simple regex rules based on standard MERALCO formatting
-    # Note: These are baseline regexes and might need fine-tuning based on actual scan quality.
-    
-    # Look for 10-digit account numbers
-    acc_match = re.search(r'(?:Account No\.|CAN)[\s\:\-]+(\d{10})', text, re.IGNORECASE)
+
+    acc_match = re.search(
+        r'(?:Account No\.|CAN)[\s\:\-]+(\d{10})', text, re.IGNORECASE
+    )
     if acc_match:
         data["meralco_account_number"] = acc_match.group(1)
     else:
         needs_manual_verification = True
-        
-    # Look for billing period (e.g., "Feb 2024" or "02/01/2024 - 02/29/2024")
-    # This is a very loose regex grabbing typical month/year combinations
-    period_match = re.search(r'(?:Billing Period)[\s\:\-]+([A-Za-z]+\s\d{4}|\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4})', text, re.IGNORECASE)
+
+    period_match = re.search(
+        r'(?:Billing Period)[\s\:\-]+([A-Za-z]+\s\d{4}|\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4})',
+        text, re.IGNORECASE,
+    )
     if period_match:
         data["billing_period"] = period_match.group(1).strip()
     else:
-        # Default placeholder if not found
         data["billing_period"] = "Unknown"
         needs_manual_verification = True
 
-    # Look for kWh consumed (e.g., "Total kWh 210" or "kWh: 210")
-    kwh_match = re.search(r'(?:Total\s+kWh|kWh)[\s\:\-]+([\d\.]+)', text, re.IGNORECASE)
+    kwh_match = re.search(
+        r'(?:Total\s+kWh|kWh)[\s\:\-]+([\d\.]+)', text, re.IGNORECASE
+    )
     if kwh_match:
         try:
             data["total_kwh_consumed"] = float(kwh_match.group(1))
@@ -68,9 +105,11 @@ def parse_extracted_text(text):
             needs_manual_verification = True
     else:
         needs_manual_verification = True
-        
-    # Look for Total Amount Due (PHP)
-    php_match = re.search(r'(?:Total Amount Due|Amount Due)[\s\:\-P]+([\d\,\.]+)', text, re.IGNORECASE)
+
+    php_match = re.search(
+        r'(?:Total Amount Due|Amount Due)[\s\:\-P]+([\d\,\.]+)',
+        text, re.IGNORECASE,
+    )
     if php_match:
         try:
             clean_val = php_match.group(1).replace(',', '')
@@ -79,10 +118,10 @@ def parse_extracted_text(text):
             needs_manual_verification = True
     else:
         needs_manual_verification = True
-        
+
     return {
         "success": True,
         "extracted_data": data,
-        "raw_text": text if needs_manual_verification else None, # Include raw text for debugging if failed
-        "needs_manual_verification": needs_manual_verification
+        "raw_text": text if needs_manual_verification else None,
+        "needs_manual_verification": needs_manual_verification,
     }
