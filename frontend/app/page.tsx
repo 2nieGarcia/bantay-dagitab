@@ -1,11 +1,21 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Cookies from 'js-cookie';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
 
 export default function Home() {
   const { t } = useLang();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const token = Cookies.get('access_token');
+    setIsLoggedIn(!!token);
+  }, []);
 
   return (
     <div className="min-h-screen bg-page text-ink">
@@ -13,18 +23,29 @@ export default function Home() {
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-5">
           <Brand size="md" />
           <nav className="flex items-center gap-1">
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm font-medium text-ink-2 hover:text-ink transition-colors"
-            >
-              {t('common.signIn')}
-            </Link>
-            <Link
-              href="/register"
-              className="px-4 py-2 text-sm font-medium rounded-md bg-ink text-ink-inverse hover:bg-ink-2 transition-colors"
-            >
-              {t('common.signUp')}
-            </Link>
+            {mounted && isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                className="px-4 py-2 text-sm font-medium rounded-md bg-ink text-ink-inverse hover:bg-ink-2 transition-colors"
+              >
+                {t('common.openDashboard')}
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-sm font-medium text-ink-2 hover:text-ink transition-colors"
+                >
+                  {t('common.signIn')}
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 text-sm font-medium rounded-md bg-ink text-ink-inverse hover:bg-ink-2 transition-colors"
+                >
+                  {t('common.signUp')}
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -45,10 +66,10 @@ export default function Home() {
             <p className="text-base text-ink-2 leading-relaxed max-w-md">{t('home.lede')}</p>
             <div className="flex flex-wrap items-center gap-3 mt-7">
               <Link
-                href="/dashboard"
+                href={mounted && isLoggedIn ? "/dashboard" : "/login"}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-md bg-accent text-accent-ink text-sm font-semibold hover:bg-accent-strong transition-colors"
               >
-                {t('common.openDashboard')}
+                {mounted && isLoggedIn ? t('common.openDashboard') : t('common.signIn')}
                 <span aria-hidden>→</span>
               </Link>
               <Link
