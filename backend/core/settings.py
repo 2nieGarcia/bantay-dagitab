@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-IS_PRODUCTION = os.environ.get('RENDER', False)
+IS_PRODUCTION = os.environ.get('RENDER', 'False').lower() == 'true'
 DEBUG = not IS_PRODUCTION
 
 if IS_PRODUCTION:
@@ -38,6 +38,7 @@ else:
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
