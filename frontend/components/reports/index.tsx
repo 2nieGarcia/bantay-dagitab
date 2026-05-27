@@ -2,18 +2,20 @@
 
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 
+type AlertStatus = 'active' | 'resolved' | 'dismissed';
+
 type Alert = {
-  alert_id: string;
+  alert_id: number;
   device_id: string;
   timestamp: string;
   alert_type: string;
   expected_wattage_range: string;
   actual_wattage: number;
   message: string;
-  status: 'active' | 'resolved';
+  status: AlertStatus;
 };
 
 function formatDate(iso: string) {
@@ -27,18 +29,42 @@ function formatDate(iso: string) {
 
 function AlertCard({
   alert,
-  isResolved,
   isOpen,
   onToggle,
+  onMarkResolved,
+  onDismiss,
+  mutating,
 }: {
   alert: Alert;
-  isResolved: boolean;
   isOpen: boolean;
   onToggle: () => void;
+  onMarkResolved: () => void;
+  onDismiss: () => void;
+  mutating: boolean;
 }) {
   const { t } = useLang();
+  const isResolved = alert.status === 'resolved';
+  const isDismissed = alert.status === 'dismissed';
+  const isActive = alert.status === 'active';
+
+  const statusBadge = isResolved
+    ? { dot: 'bg-success-soft text-success', glyph: '✓' }
+    : isDismissed
+      ? { dot: 'bg-elevated text-ink-3', glyph: '×' }
+      : { dot: 'bg-signal-soft text-signal-strong', glyph: '!' };
+
+  const statusLabel = isResolved
+    ? t('common.resolved')
+    : isDismissed
+      ? 'Dismissed'
+      : t('common.active');
+
   return (
-    <li className={`border rounded-lg overflow-hidden ${isResolved ? 'border-line bg-surface' : 'border-signal-soft bg-surface'}`}>
+    <li
+      className={`border rounded-lg overflow-hidden ${
+        isActive ? 'border-signal-soft bg-surface' : 'border-line bg-surface'
+      }`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -47,12 +73,10 @@ function AlertCard({
       >
         <div className="flex flex-wrap items-start gap-4">
           <span
-            className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-              isResolved ? 'bg-success-soft text-success' : 'bg-signal-soft text-signal-strong'
-            }`}
+            className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${statusBadge.dot}`}
             aria-hidden
           >
-            {isResolved ? '✓' : '!'}
+            {statusBadge.glyph}
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-baseline gap-3 mb-1">
@@ -62,7 +86,7 @@ function AlertCard({
                   : alert.alert_type}
               </h3>
               <span className="text-xs text-ink-3 font-medium uppercase tracking-wider">
-                {isResolved ? t('common.resolved') : t('common.active')}
+                {statusLabel}
               </span>
               <span className="text-xs text-ink-3 tabular">{formatDate(alert.timestamp)}</span>
             </div>
@@ -97,12 +121,22 @@ function AlertCard({
             {t('reports.recommendation')}
           </p>
           <p className="text-sm text-ink leading-relaxed max-w-2xl">{alert.message}</p>
-          {!isResolved && (
+          {isActive && (
             <div className="flex flex-wrap gap-3 mt-5">
-              <button className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors">
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onMarkResolved(); }}
+                disabled={mutating}
+                className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors disabled:opacity-50"
+              >
                 {t('common.markResolved')}
               </button>
-              <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onDismiss(); }}
+                disabled={mutating}
+                className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors disabled:opacity-50"
+              >
                 {t('common.dismiss')}
               </button>
             </div>
@@ -114,19 +148,33 @@ function AlertCard({
 }
 
 export default function ReportsContent() {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
   const { t } = useLang();
+  const queryClient = useQueryClient();
 
+  // Use the full alert list (not vw_recent_anomalies' 7-day window) so the
+  // Reports page truly shows everything the user has ever received.
   const { data: alerts = [], isLoading, isError } = useQuery<Alert[]>({
-    queryKey: ['recent-anomalies'],
+    queryKey: ['alerts-all'],
     queryFn: async () => {
-      const response = await api.get('/analytics/recent-anomalies/');
+      const response = await api.get<Alert[]>('/analytics/');
       return response.data;
+    },
+    refetchInterval: 30_000,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ alertId, status }: { alertId: number; status: AlertStatus }) => {
+      await api.patch(`/analytics/${alertId}/`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts-all'] });
+      queryClient.invalidateQueries({ queryKey: ['recentAnomalies'] });
     },
   });
 
   const active = alerts.filter(a => a.status === 'active');
-  const past = alerts.filter(a => a.status === 'resolved');
+  const past = alerts.filter(a => a.status !== 'active');
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -163,9 +211,11 @@ export default function ReportsContent() {
                   <AlertCard
                     key={a.alert_id}
                     alert={a}
-                    isResolved={false}
                     isOpen={openId === a.alert_id}
                     onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
+                    onMarkResolved={() => updateMutation.mutate({ alertId: a.alert_id, status: 'resolved' })}
+                    onDismiss={() => updateMutation.mutate({ alertId: a.alert_id, status: 'dismissed' })}
+                    mutating={updateMutation.isPending}
                   />
                 ))}
               </ul>
@@ -190,9 +240,11 @@ export default function ReportsContent() {
                   <AlertCard
                     key={a.alert_id}
                     alert={a}
-                    isResolved
                     isOpen={openId === a.alert_id}
                     onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
+                    onMarkResolved={() => updateMutation.mutate({ alertId: a.alert_id, status: 'resolved' })}
+                    onDismiss={() => updateMutation.mutate({ alertId: a.alert_id, status: 'dismissed' })}
+                    mutating={updateMutation.isPending}
                   />
                 ))}
               </ul>

@@ -1,6 +1,6 @@
 # =============================================================================
 # Residential Energy Anomaly Detection — ML Pipeline
-# Baseline requirements for laptop-scale development 
+# Baseline requirements for laptop-scale development
 # Target: Python 3.10+
 # =============================================================================
 
@@ -38,10 +38,15 @@ fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 
 # ---------------------------------------------------------------------------
-# Database (optional — baseline uses files; uncomment for PostgreSQL)
+# Database (Supabase Postgres — shared with Django backend)
 # ---------------------------------------------------------------------------
-# sqlalchemy>=2.0.0
-# psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# ---------------------------------------------------------------------------
+# Contract C push to Django (paper §VI.F.2, X-Service-Token)
+# ---------------------------------------------------------------------------
+requests>=2.31.0
 
 # ---------------------------------------------------------------------------
 # Message Queue (optional — uncomment for Redis buffering)

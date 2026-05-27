@@ -54,8 +54,26 @@ export default function RegisterPage() {
         // fall through to /login
       }
       router.push('/login');
-    } catch {
-      setError('Registration failed. Please try again.');
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+      let detail = 'Registration failed. Please try again.';
+      if (data && typeof data === 'object') {
+        if (typeof data.detail === 'string') {
+          detail = data.detail;
+        } else {
+          // DRF serializer errors come back as { field: ["message", ...] }
+          const firstField = Object.entries(data)[0];
+          if (firstField) {
+            const [, value] = firstField;
+            if (Array.isArray(value) && typeof value[0] === 'string') {
+              detail = value[0];
+            } else if (typeof value === 'string') {
+              detail = value;
+            }
+          }
+        }
+      }
+      setError(detail);
     } finally {
       setLoading(false);
     }

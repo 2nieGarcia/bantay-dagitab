@@ -1,12 +1,33 @@
+"""Inference worker — cron-driven anomaly detection.
+
+Paper §IV.C / ARCHITECTURE §6 (Baseline). One pass of this worker:
+
+  1. Reads IoT readings from Django's `iot_monitoring_iotreading` table.
+     A cursor stored in `ml_worker_state.last_processed_reading_id` is
+     advanced after each run so only new rows are scored.
+  2. For every reading, computes a predicted wattage using the deployed
+     model (joblib artifact at deployment.model_path) and the same
+     feature set built during training.
+  3. Applies the k·σ threshold and the sustained-3 rule (paper §IV.C).
+  4. Writes one row to `ml_predictions_log` per reading (observability).
+  5. For each sustained-3 trigger, pushes a Contract C payload to
+     Django's `POST /api/analytics/ingest/` (paper §VI.F.2,
+     X-Service-Token auth).
+
+Run via:
+
+    python -m src.inference.run worker --config config/deployment.yaml
+"""
+
 from __future__ import annotations
 
 import argparse
 import logging
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import joblib
 import numpy as np
@@ -15,10 +36,13 @@ import yaml
 from sqlalchemy import bindparam, text
 
 from src.db import get_engine
+from src.django_client import DjangoAlertPushError, is_configured as django_configured, push_anomaly_alert
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 LOGGER = logging.getLogger("inference_worker")
+
+WORKER_STATE_CURSOR_KEY = "last_processed_reading_id"
 
 
 @dataclass
@@ -60,21 +84,43 @@ def load_thresholds(raw: Dict) -> Tuple[Threshold, Dict[str, Threshold]]:
     return default, by_device
 
 
-def fetch_unprocessed(engine, cutoff: datetime, limit: int) -> pd.DataFrame:
+def fetch_cursor(engine) -> int:
+    """Read `last_processed_reading_id` from ml_worker_state; default 0."""
+    query = text("SELECT value FROM ml_worker_state WHERE key = :key")
+    with engine.connect() as conn:
+        row = conn.execute(query, {"key": WORKER_STATE_CURSOR_KEY}).fetchone()
+    if row is None:
+        return 0
+    try:
+        return int(row[0])
+    except (TypeError, ValueError):
+        return 0
+
+
+def fetch_unprocessed(engine, cursor_id: int, limit: int) -> pd.DataFrame:
+    """Read Django's iot_monitoring_iotreading rows newer than the cursor.
+
+    Columns returned match the worker's downstream expectations:
+      id, device_id, user_account_id, timestamp, avg_wattage
+    `user_account_id` is sourced from Django's integer FK `user_id`.
+    """
     query = text(
         """
-        SELECT id, device_id, user_account_id, timestamp, avg_wattage
-        FROM iot_readings
-        WHERE processed = FALSE
-          AND timestamp >= :cutoff
-        ORDER BY timestamp ASC
+        SELECT id,
+               device_id,
+               user_id        AS user_account_id,
+               timestamp,
+               avg_wattage
+        FROM iot_monitoring_iotreading
+        WHERE id > :cursor_id
+        ORDER BY id ASC
         LIMIT :limit
         """
     )
     return pd.read_sql_query(
         query,
         engine,
-        params={"cutoff": cutoff, "limit": limit},
+        params={"cursor_id": cursor_id, "limit": limit},
     )
 
 
@@ -84,7 +130,7 @@ def fetch_device_means(engine, device_ids: Iterable[str]) -> Dict[str, float]:
     query = text(
         """
         SELECT device_id, AVG(avg_wattage) AS mean_wattage
-        FROM iot_readings
+        FROM iot_monitoring_iotreading
         WHERE device_id IN :device_ids
         GROUP BY device_id
         """
@@ -103,7 +149,7 @@ def fetch_recent_history(
     query = text(
         """
         SELECT device_id, timestamp, avg_wattage
-        FROM iot_readings
+        FROM iot_monitoring_iotreading
         WHERE device_id IN :device_ids
           AND timestamp >= :cutoff
         ORDER BY device_id, timestamp ASC
@@ -131,7 +177,7 @@ def load_model_payload(model_path: str) -> Dict:
 
 
 def build_feature_row(
-    history_df: pd.DataFrame,
+    history_df: Optional[pd.DataFrame],
     timestamp: pd.Timestamp,
     avg_wattage: float,
     feature_cols: List[str],
@@ -174,20 +220,19 @@ def build_feature_row(
     if last_row.empty:
         return None
 
-    # Fill any remaining NaN values with 0 as last resort
     row_features = last_row[feature_cols].fillna(0)
-
     return row_features
 
 
 def load_consecutive_counts(engine, device_ids: Iterable[str]) -> Dict[str, int]:
+    device_ids = list(device_ids)
     if not device_ids:
         return {}
     keys = [f"consecutive_{device_id}" for device_id in device_ids]
     query = text(
         """
         SELECT key, value
-        FROM worker_state
+        FROM ml_worker_state
         WHERE key IN :keys
         """
     ).bindparams(bindparam("keys", expanding=True))
@@ -203,16 +248,12 @@ def load_consecutive_counts(engine, device_ids: Iterable[str]) -> Dict[str, int]
     return counts
 
 
-def upsert_consecutive_counts(conn, counts: Dict[str, int]) -> None:
-    if not counts:
+def upsert_worker_state(conn, payload: List[Dict]) -> None:
+    if not payload:
         return
-    payload = [
-        {"key": f"consecutive_{device_id}", "value": str(value)}
-        for device_id, value in counts.items()
-    ]
     query = text(
         """
-        INSERT INTO worker_state (key, value)
+        INSERT INTO ml_worker_state (key, value)
         VALUES (:key, :value)
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
         """
@@ -225,7 +266,7 @@ def insert_predictions(conn, rows: List[Dict]) -> None:
         return
     query = text(
         """
-        INSERT INTO predictions_log (
+        INSERT INTO ml_predictions_log (
             timestamp,
             device_id,
             actual_wattage,
@@ -247,57 +288,51 @@ def insert_predictions(conn, rows: List[Dict]) -> None:
     conn.execute(query, rows)
 
 
-def insert_alerts(conn, rows: List[Dict]) -> None:
-    if not rows:
-        return
-    query = text(
-        """
-        INSERT INTO anomaly_alerts (
-            alert_id,
-            device_id,
-            user_account_id,
-            alert_timestamp,
-            alert_type,
-            actual_wattage,
-            predicted_wattage,
-            residual_wattage,
-            threshold_wattage,
-            k_value,
-            sigma_residuals,
-            consecutive_count,
-            created_at
-        ) VALUES (
-            :alert_id,
-            :device_id,
-            :user_account_id,
-            :alert_timestamp,
-            :alert_type,
-            :actual_wattage,
-            :predicted_wattage,
-            :residual_wattage,
-            :threshold_wattage,
-            :k_value,
-            :sigma_residuals,
-            :consecutive_count,
-            :created_at
+def _format_expected_range(predicted: float, threshold: float) -> str:
+    low = max(0.0, predicted - threshold)
+    high = predicted + threshold
+    return f"{low:.0f}-{high:.0f}"
+
+
+def _build_alert_message(actual: float, predicted: float) -> str:
+    if predicted <= 0:
+        return (
+            "Warning: Your current usage is higher than expected for this time "
+            "of day. Check appliances to avoid bill shock at end of billing cycle."
         )
-        """
+    pct = int(round(((actual - predicted) / predicted) * 100))
+    return (
+        "Warning: Your current usage is "
+        f"{pct}% higher than your historical average for this time of day. "
+        "Check appliances to avoid bill shock at end of billing cycle."
     )
-    conn.execute(query, rows)
 
 
-def mark_processed(conn, ids: Iterable[int]) -> None:
-    ids = list(ids)
-    if not ids:
-        return
-    query = text(
-        """
-        UPDATE iot_readings
-        SET processed = TRUE
-        WHERE id IN :ids
-        """
-    ).bindparams(bindparam("ids", expanding=True))
-    conn.execute(query, {"ids": ids})
+def _build_contract_c_payload(
+    *,
+    user_account_id: int,
+    device_id: str,
+    timestamp: datetime,
+    actual: float,
+    predicted: float,
+    threshold: float,
+) -> Dict:
+    if isinstance(timestamp, pd.Timestamp):
+        ts_iso = timestamp.tz_convert("UTC").isoformat() if timestamp.tzinfo else timestamp.tz_localize("UTC").isoformat()
+    elif isinstance(timestamp, datetime):
+        ts = timestamp if timestamp.tzinfo else timestamp.replace(tzinfo=timezone.utc)
+        ts_iso = ts.isoformat()
+    else:
+        ts_iso = str(timestamp)
+    return {
+        "user_account_id": int(user_account_id),
+        "device_id": device_id,
+        "timestamp": ts_iso,
+        "alert_type": "SUSTAINED_OVER_CONSUMPTION",
+        "expected_wattage_range": _format_expected_range(predicted, threshold),
+        "actual_wattage": float(actual),
+        "message": _build_alert_message(actual, predicted),
+    }
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -327,10 +362,16 @@ def main() -> None:
     anomaly_cfg = config.get("anomaly", {})
     thresholds_default, thresholds_by_device = load_thresholds(anomaly_cfg)
 
-    lookback_minutes = int(inference_cfg.get("lookback_minutes", 10))
     batch_size = int(inference_cfg.get("batch_size", 1000))
     sustained_window = int(anomaly_cfg.get("sustained_window", 3))
     history_days = int(inference_cfg.get("history_days", 7))
+
+    if not django_configured():
+        LOGGER.error(
+            "Django push not configured. Set BACKEND_API_URL and "
+            "SERVICE_ACCOUNT_TOKEN before running the worker."
+        )
+        sys.exit(2)
 
     model_payload = None
     model = None
@@ -345,23 +386,23 @@ def main() -> None:
         except Exception as exc:
             LOGGER.warning("Failed to load model (%s): %s", model_path, exc)
 
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
     engine = get_engine()
 
     LOGGER.info("Loading new readings...")
-    readings = fetch_unprocessed(engine, cutoff, batch_size)
+    cursor_id = fetch_cursor(engine)
+    readings = fetch_unprocessed(engine, cursor_id, batch_size)
     if readings.empty:
-        LOGGER.info("No new readings found.")
+        LOGGER.info("No new readings found (cursor=%s).", cursor_id)
         return
 
     device_ids = sorted(readings["device_id"].unique())
     device_means = fetch_device_means(engine, device_ids)
-    history_cutoff = datetime.now(timezone.utc) - timedelta(days=history_days)
+    history_cutoff = datetime.now(timezone.utc) - pd.Timedelta(days=history_days)
     history_by_device = fetch_recent_history(engine, device_ids, history_cutoff)
     consecutive_counts = load_consecutive_counts(engine, device_ids)
 
     prediction_rows: List[Dict] = []
-    alert_rows: List[Dict] = []
+    alert_payloads: List[Dict] = []
     now = datetime.now(timezone.utc)
 
     for _, row in readings.iterrows():
@@ -409,35 +450,47 @@ def main() -> None:
         )
 
         if alert_triggered:
-            alert_rows.append(
-                {
-                    "alert_id": f"{device_id}-{row['timestamp'].isoformat()}",
-                    "device_id": device_id,
-                    "user_account_id": user_account_id,
-                    "alert_timestamp": row["timestamp"],
-                    "alert_type": "SUSTAINED_OVER_CONSUMPTION",
-                    "actual_wattage": actual,
-                    "predicted_wattage": predicted,
-                    "residual_wattage": residual,
-                    "threshold_wattage": threshold,
-                    "k_value": threshold_cfg.k,
-                    "sigma_residuals": threshold_cfg.sigma_residuals,
-                    "consecutive_count": consecutive,
-                    "created_at": now,
-                }
+            alert_payloads.append(
+                _build_contract_c_payload(
+                    user_account_id=user_account_id,
+                    device_id=device_id,
+                    timestamp=row["timestamp"],
+                    actual=actual,
+                    predicted=predicted,
+                    threshold=threshold,
+                )
             )
 
-    LOGGER.info("Writing predictions and alerts...")
+    LOGGER.info("Writing predictions log and advancing cursor...")
+    new_cursor = int(readings["id"].max())
+    state_payload = [
+        {"key": WORKER_STATE_CURSOR_KEY, "value": str(new_cursor)},
+    ]
+    state_payload.extend(
+        {"key": f"consecutive_{device_id}", "value": str(value)}
+        for device_id, value in consecutive_counts.items()
+    )
     with engine.begin() as conn:
         insert_predictions(conn, prediction_rows)
-        insert_alerts(conn, alert_rows)
-        mark_processed(conn, readings["id"].tolist())
-        upsert_consecutive_counts(conn, consecutive_counts)
+        upsert_worker_state(conn, state_payload)
+
+    pushed = 0
+    push_failures = 0
+    for payload in alert_payloads:
+        try:
+            push_anomaly_alert(payload)
+            pushed += 1
+        except DjangoAlertPushError as exc:
+            push_failures += 1
+            LOGGER.error("Contract C push failed: %s", exc)
 
     LOGGER.info(
-        "Processed %s rows, alerts=%s",
+        "Processed %s rows, alerts_triggered=%s, pushed=%s, push_failures=%s, cursor=%s",
         len(prediction_rows),
-        len(alert_rows),
+        len(alert_payloads),
+        pushed,
+        push_failures,
+        new_cursor,
     )
 
 

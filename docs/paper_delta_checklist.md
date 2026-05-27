@@ -82,8 +82,12 @@ The `[ INSERT IMAGE HERE: Figure VII.A.x ]` placeholders require the live system
 - `GET/PATCH/DELETE /api/billing/<id>/` — single-bill detail/edit/delete.
 - Inline edit form on the frontend (no more `prompt()` cascade).
 
-### P2.3 FastAPI ML service  ⚠ OWNED BY ML TEAM
-**Status:** [ml/app/main.py](../ml/app/main.py) has `/health`. ML team is building `/anomaly/detect`. Do not touch from the backend side.
+### P2.3 FastAPI ML service  ✅ DONE (rationalized 2026-05-27 — see D14)
+- [ml/app/main.py](../ml/app/main.py) — FastAPI app with `GET /health`.
+- [ml/src/inference/inference_worker.py](../ml/src/inference/inference_worker.py) — cron-driven anomaly detection (ARCHITECTURE §6 "Baseline"). Reads `iot_monitoring_iotreading`, applies k·σ with sustained-3, writes per-row observability to `ml_predictions_log`, advances cursor in `ml_worker_state`.
+- [ml/src/django_client.py](../ml/src/django_client.py) — pushes each sustained-3 trigger to Django's `POST /api/analytics/ingest/` with `X-Service-Token` (paper §VI.F.2).
+- ML-owned schema: [ml/ml_observability_tables.sql](../ml/ml_observability_tables.sql) — only `ml_predictions_log` and `ml_worker_state`.
+- The duplicate ingestion/alerts tables (`iot_readings`, `ocr_bills`, `anomaly_alerts`) and their FastAPI endpoints are gone — Contract A/B/C are now strictly Django-owned, matching paper §IV.B / §VI.F.2.
 
 ### P2.4 Live chatbot integration ✅ DONE
 - `backend/chatbot/services.py` — `LLMClient` (OpenAI-compatible: Groq or Ollama).
@@ -220,6 +224,32 @@ Sentinel `-1` in `mappedServerBills`; `ConfidencePill` hides itself when `value 
 ### D13 — `/api/analytics/bill-vs-telemetry/` 500 on `to_date('Unknown', ...)` ✅ RESOLVED
 Migration 0006 guards the cast: `CASE WHEN billing_period ~ '^[A-Za-z]{3,9} \d{4}$' THEN to_date(...) ELSE NULL END`.
 
+### D16 — Centralized environment configuration ✅ RESOLVED
+Per-service `.env` files (`backend/.env`, `ml/.env`) caused exactly the failure mode they're prone to: a `SERVICE_ACCOUNT_TOKEN` mismatch between the two would have silently dropped every Contract C push. Consolidated to a single `<repo_root>/.env`:
+- Created [.env.example](../.env.example) at the repo root — single source of truth.
+- [backend/core/settings.py](../backend/core/settings.py) and [ml/src/db/__init__.py](../ml/src/db/__init__.py) now `load_dotenv(<repo_root>/.env)`.
+- [docker-compose.yml](../docker-compose.yml) — both `backend` and `ml` services now `env_file: ./.env`.
+- `backend/.env.example` and `ml/.env.example` reduced to deprecation pointers; the original `backend/.env` and `ml/.env` files were merged and removed.
+- Backend and ML READMEs updated to reference the centralized path.
+
+### D15 — Email-or-username login ✅ RESOLVED
+The login form labels its input "Email" and requires an `@`-sign, but JWT auth was hitting `User.username` only — superusers/seed accounts (whose username is not email-shaped) could not log in. Also, the form's `catch` block swallowed the server's reason and showed a generic message that disappeared on re-render.
+- Added [backend/users/auth.py](../backend/users/auth.py) — `EmailOrUsernameBackend` that resolves the JWT identifier against `username` OR `email` (case-insensitive), with timing-uniform fallthrough on misses.
+- Wired into `AUTHENTICATION_BACKENDS` in [backend/core/settings.py](../backend/core/settings.py) ahead of the default `ModelBackend`.
+- [frontend/app/login/page.tsx](../frontend/app/login/page.tsx) — surfaces Django's `detail` field instead of a hard-coded message.
+- [frontend/app/register/page.tsx](../frontend/app/register/page.tsx) — same, plus parses DRF per-field validation errors.
+
+### D14 — ML schema rationalization (Option C) ✅ RESOLVED
+The ML team had built a parallel data layer with its own `iot_readings`, `ocr_bills`, and `anomaly_alerts` tables (plus matching `/ingest/*` and `/db/*` FastAPI endpoints), which competed with Django's Contract A/B/C. Both lived in the same Supabase database. Rationalized:
+- Deleted `ml/init_tables.sql` and the duplicate tables (Django's `iot_monitoring_iotreading`, `billing_bill`, `analytics_anomalyalert` are the sole owners).
+- Replaced with [ml/ml_observability_tables.sql](../ml/ml_observability_tables.sql) — only `ml_predictions_log` + `ml_worker_state` (ML-internal observability).
+- Stripped the parallel FastAPI ingestion surface from [ml/src/ingestion/run.py](../ml/src/ingestion/run.py); kept only the dev CSV → Parquet consolidator.
+- Rewrote [ml/src/inference/inference_worker.py](../ml/src/inference/inference_worker.py) to read Django's table via a `last_processed_reading_id` cursor and push every sustained-3 trigger to `POST /api/analytics/ingest/` with `X-Service-Token` (paper §VI.F.2).
+- Repointed [ml/src/preprocessing/run.py](../ml/src/preprocessing/run.py) DB-mode to `iot_monitoring_iotreading` (read-only; no more `processed` flag).
+- Repointed [ml/src/monitoring/daily_report.py](../ml/src/monitoring/daily_report.py) to `ml_predictions_log` (alerts derived from `alert_triggered = TRUE`).
+- Deleted `ml/scripts/seed_postgres.py` and `ml/scripts/seed_baseline.py`; production seeding is `backend/scripts/seed_perf_data.py` (P2.7).
+- Wired `SERVICE_ACCOUNT_TOKEN` and shared `DATABASE_URL` into `ml/.env.example` and `docker-compose.yml` (`ml` service now `env_file: ml/.env`).
+
 ---
 
 ## Suggested next-step order
@@ -237,4 +267,6 @@ P2.12 PG-role layer and P2.13 mTLS stay deferred unless a teacher pushes.
 ## Items owned by other teams (do not touch)
 
 - ESP32 firmware (`iot/firmware/`) — IoT team.
-- FastAPI ML service body (`ml/app/`) — ML team.
+- FastAPI ML service body (`ml/app/`) — ML team. *(Ownership boundary
+  waived 2026-05-27 by PM for the schema rationalization in D14;
+  resumes normal ML-team ownership going forward.)*
