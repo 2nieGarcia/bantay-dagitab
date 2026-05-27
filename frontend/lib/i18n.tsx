@@ -52,6 +52,7 @@ const en: Dict = {
   'common.meter': 'Meter',
   'common.loading': 'Loading...',
   'common.error': 'Error loading data.',
+  'common.comingSoon': 'Coming Soon!',
 
   'home.kicker': 'For MERALCO households',
   'home.headline1': "See your bill take shape,",
@@ -117,6 +118,14 @@ const en: Dict = {
   'dashboard.device.electronicsNote': 'Daily',
   'dashboard.device.other': 'Everything else',
   'dashboard.device.otherNote': 'Lights, chargers, fans',
+  'dashboard.empty.billingTitle': 'No Billing Data',
+  'dashboard.empty.billingBody': "It seems you haven't added a bill yet. Would you like to add one?",
+  'dashboard.empty.anomaliesTitle': 'No Anomalies Detected',
+  'dashboard.empty.anomaliesBody': 'There are currently no usage anomalies reported.',
+  'dashboard.empty.monthlyTitle': 'No Consumption Data',
+  'dashboard.empty.monthlyBody': 'Monthly consumption history is currently empty.',
+  'dashboard.anomalies.actualExpected': 'Actual / Expected',
+
 
   'bills.title': 'Your bills',
   'bills.lede':
@@ -322,6 +331,7 @@ const fil: Dict = {
   'common.meter': 'Metro',
   'common.loading': 'Naglo-load...',
   'common.error': 'May error sa pag-load ng data.',
+  'common.comingSoon': 'Malapit na!',
 
   'home.kicker': 'Para sa mga sambahayan ng MERALCO',
   'home.headline1': 'Tingnan kung magkano na ang bill mo,',
@@ -387,6 +397,13 @@ const fil: Dict = {
   'dashboard.device.electronicsNote': 'Araw-araw',
   'dashboard.device.other': 'Iba pa',
   'dashboard.device.otherNote': 'Ilaw, charger, fan',
+  'dashboard.empty.billingTitle': 'Wala pang Bill Data',
+  'dashboard.empty.billingBody': 'Mukhang wala ka pang na-upload na bill. Gusto mo bang magdagdag?',
+  'dashboard.empty.anomaliesTitle': 'Walang Na-detect na Anomalya',
+  'dashboard.empty.anomaliesBody': 'Kasalukuyang walang naiulat na di-pangkaraniwang konsumo.',
+  'dashboard.empty.monthlyTitle': 'Walang Data ng Konsumo',
+  'dashboard.empty.monthlyBody': 'Walang laman ang kasaysayan ng buwanang konsumo.',
+  'dashboard.anomalies.actualExpected': 'Tunay / Inaasahan',
 
   'bills.title': 'Mga bill mo',
   'bills.lede':
