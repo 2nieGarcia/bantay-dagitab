@@ -49,6 +49,9 @@ const en: Dict = {
   'common.edit': 'Edit',
   'common.delete': 'Delete',
   'common.send': 'Send',
+  'common.meter': 'Meter',
+  'common.loading': 'Loading...',
+  'common.error': 'Error loading data.',
 
   'home.kicker': 'For MERALCO households',
   'home.headline1': "See your bill take shape,",
@@ -316,6 +319,9 @@ const fil: Dict = {
   'common.edit': 'I-edit',
   'common.delete': 'Burahin',
   'common.send': 'Ipadala',
+  'common.meter': 'Metro',
+  'common.loading': 'Naglo-load...',
+  'common.error': 'May error sa pag-load ng data.',
 
   'home.kicker': 'Para sa mga sambahayan ng MERALCO',
   'home.headline1': 'Tingnan kung magkano na ang bill mo,',

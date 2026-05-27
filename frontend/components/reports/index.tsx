@@ -75,7 +75,7 @@ function AlertCard({
 
         <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3 mt-5 pl-11">
           <div>
-            <dt className="text-xs uppercase tracking-wider text-ink-3 mb-0.5">Meter</dt>
+            <dt className="text-xs uppercase tracking-wider text-ink-3 mb-0.5">{t('common.meter')}</dt>
             <dd className="text-sm text-ink tabular truncate">{alert.device_id}</dd>
           </div>
           <div>
@@ -118,9 +118,9 @@ export default function ReportsContent() {
   const { t } = useLang();
 
   const { data: alerts = [], isLoading, isError } = useQuery<Alert[]>({
-    queryKey: ['recent-anomalies'],
+    queryKey: ['anomalies'],
     queryFn: async () => {
-      const response = await api.get('/analytics/recent-anomalies/');
+      const response = await api.get('/analytics/');
       return response.data;
     },
   });
@@ -137,11 +137,11 @@ export default function ReportsContent() {
 
       {isLoading ? (
         <div className="flex justify-center items-center h-32">
-          <p className="text-ink-2">Loading...</p>
+          <p className="text-ink-2">{t('common.loading') || 'Loading...'}</p>
         </div>
       ) : isError ? (
         <div className="flex justify-center items-center h-32">
-          <p className="text-signal-strong">Error loading anomalies.</p>
+          <p className="text-signal-strong">{t('common.error') || 'Error loading data.'}</p>
         </div>
       ) : (
         <>
