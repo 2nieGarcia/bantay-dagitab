@@ -4,6 +4,7 @@ export interface Bill {
   status: 'completed' | 'processing';
   uploadDate: string;
   ocrConfidence: number;
+  needsManualVerification?: boolean;
   extractedData: {
     accountDetails: {
       accountNumber: string;

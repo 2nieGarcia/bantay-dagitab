@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -28,9 +28,9 @@ const CONFIDENCE_WARNING_THRESHOLD = 80;
 
 function isLowConfidenceBill(bill: Bill): boolean {
   if (bill.status !== 'processing') return false;
+  if (bill.needsManualVerification !== undefined) return bill.needsManualVerification;
+  
   if (bill.ocrConfidence < CONFIDENCE_WARNING_THRESHOLD) return true;
-  // Per-field confidence is set to 0 when extraction missed that field
-  // entirely. Any miss is enough to warn the user.
   return (
     bill.extractedData.accountDetails.confidence === 0 ||
     bill.extractedData.billingPeriod.confidence === 0 ||
@@ -117,12 +117,13 @@ export default function BillsContent() {
   // Saved bills come back from the server without OCR confidence — the user
   // has already verified the values. Use sentinel -1 so ConfidencePill hides
   // itself instead of falsely claiming 100% confidence.
-  const mappedServerBills: Bill[] = serverBills.map((b: any) => ({
+  const mappedServerBills: Bill[] = useMemo(() => serverBills.map((b: any) => ({
     id: b.id || b.scan_timestamp,
     name: `Meralco Bill ${b.billing_period || 'Unknown'}`,
-    status: 'completed',
-    uploadDate: new Date(b.scan_timestamp || Date.now()).toLocaleDateString(),
+    status: 'completed' as const,
+    uploadDate: b.scan_timestamp ? new Date(b.scan_timestamp).toLocaleDateString() : 'Unknown',
     ocrConfidence: -1,
+    needsManualVerification: false,
     extractedData: {
       accountDetails: {
         accountNumber: b.meralco_account_number || '',
@@ -135,7 +136,7 @@ export default function BillsContent() {
         startDate: b.billing_period || '',
         endDate: '',
         daysInPeriod: 30,
-        readingDate: b.scan_timestamp || new Date().toISOString(),
+        readingDate: b.scan_timestamp || '',
         confidence: -1,
       },
       consumption: {
@@ -150,7 +151,7 @@ export default function BillsContent() {
       dueDate: '',
       confidence: -1,
     },
-  }));
+  })), [serverBills]);
 
   const displayBills = [
     ...uploadedBills.filter(b => b.status === 'processing'),
@@ -182,6 +183,7 @@ export default function BillsContent() {
           status: 'processing',
           uploadDate: new Date().toLocaleDateString(),
           ocrConfidence: overall,
+          needsManualVerification: res.data.needs_manual_verification,
           extractedData: {
             accountDetails: {
               accountNumber: data.meralco_account_number || '',
@@ -213,11 +215,11 @@ export default function BillsContent() {
         setUploadedBills(prev => [newBill, ...prev]);
         setExpandedBill(newBill.id);
       } else {
-        alert(res.data.error_message || 'Failed to process bill image');
+        alert(res.data.error_message || t('bills.error.process'));
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to upload bill.');
+      alert(t('bills.error.upload'));
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -244,7 +246,7 @@ export default function BillsContent() {
     },
     onError: (err) => {
       console.error(err);
-      alert('Failed to save bill.');
+      alert(t('bills.error.save'));
     }
   });
 
@@ -263,7 +265,7 @@ export default function BillsContent() {
     },
     onError: (err) => {
       console.error(err);
-      alert('Failed to delete bill.');
+      alert(t('bills.error.delete'));
     },
   });
 
@@ -281,7 +283,7 @@ export default function BillsContent() {
     },
     onError: (err) => {
       console.error(err);
-      alert('Failed to update bill.');
+      alert(t('bills.error.update'));
     },
   });
 
@@ -290,7 +292,7 @@ export default function BillsContent() {
   };
 
   const handleDelete = (bill: Bill) => {
-    if (!window.confirm(`Delete "${bill.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t('bills.deleteConfirm', { name: bill.name }))) return;
     deleteMutation.mutate(bill);
   };
 
@@ -315,7 +317,7 @@ export default function BillsContent() {
     const kwh = Number(editForm.total_kwh_consumed);
     const php = Number(editForm.total_bill_php);
     if (Number.isNaN(kwh) || Number.isNaN(php) || kwh < 0 || php < 0) {
-      setEditError('kWh and total amount must be non-negative numbers.');
+      setEditError(t('bills.editDetailsError'));
       return;
     }
     setEditError(null);
@@ -346,7 +348,7 @@ export default function BillsContent() {
         </div>
         <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
           <CloudUploadIcon sx={{ fontSize: 20 }} />
-          {isUploading ? 'Uploading...' : 'Upload Bill'}
+          {isUploading ? t('bills.uploading') || 'Uploading...' : t('bills.uploadBill') || 'Upload Bill'}
           <input
             type="file"
             accept="image/*"
@@ -455,7 +457,7 @@ export default function BillsContent() {
                       <header>
                         <h3 className="font-display text-base text-ink">{t('bills.editDetails')}</h3>
                         <p className="text-xs text-ink-3 mt-1 leading-relaxed">
-                          Only the four fields below are persisted. Cancel to leave the saved bill unchanged.
+                          {t('bills.editDetailsHelper')}
                         </p>
                       </header>
 
@@ -641,7 +643,7 @@ export default function BillsContent() {
                           disabled={acceptMutation.isPending}
                           className="px-4 py-2 rounded-md bg-accent text-accent-ink text-sm font-medium hover:bg-accent-strong transition-colors disabled:opacity-50"
                         >
-                          {acceptMutation.isPending && acceptMutation.variables?.id === bill.id ? 'Accepting...' : t('bills.accept')}
+                          {acceptMutation.isPending && acceptMutation.variables?.id === bill.id ? t('bills.accepting') : t('bills.accept')}
                         </button>
                       )}
                       <button
@@ -662,7 +664,7 @@ export default function BillsContent() {
                         disabled={deleteMutation.isPending}
                         className="ml-auto px-4 py-2 rounded-md text-sm font-medium text-signal-strong hover:bg-signal-soft transition-colors disabled:opacity-50"
                       >
-                        {deleteMutation.isPending && deleteMutation.variables?.id === bill.id ? 'Deleting...' : t('common.delete')}
+                        {deleteMutation.isPending && deleteMutation.variables?.id === bill.id ? t('bills.deleting') : t('common.delete')}
                       </button>
                     </div>
                   </div>
