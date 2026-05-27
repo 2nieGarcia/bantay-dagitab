@@ -62,6 +62,9 @@ htmlcov/
 .pioenvs/
 .piolibdeps/
 
+# Firmware credentials — copy config.example.h to config.h and fill in real values.
+iot/firmware/*/config.h
+
 # Secrets (NEVER commit these)
 *.pem
 *.key
@@ -77,3 +80,7 @@ ml/models/
 
 # Supabase CLI
 ml/supabase/
+.claude/
+
+skills-lock.json
+.agents/

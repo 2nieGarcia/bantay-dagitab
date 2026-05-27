@@ -1,34 +1,42 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { ReactNode } from 'react';
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import AppShell from "@/components/app-shell";
+import { LanguageProvider } from "@/lib/i18n";
+import Providers from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Bantay Dagitab - Energy Monitoring",
-  description: "Smart energy consumption monitoring and analytics platform",
+  title: "Bantay Dagitab",
+  description: "Watch your electricity. See your bill take shape, before it surprises you.",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">{children}</body>
+    <html lang="en" className={`${inter.variable} ${jetbrains.variable} h-full antialiased`}>
+      <body className="min-h-screen">
+        <LanguageProvider>
+          <Providers>
+            <AppShell>{children}</AppShell>
+          </Providers>
+        </LanguageProvider>
+      </body>
     </html>
   );
 }
-

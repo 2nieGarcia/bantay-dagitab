@@ -1,8 +1,12 @@
 from rest_framework import generics
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .models import AnomalyAlert
 from .serializers import AnomalyAlertSerializer
+from users.permissions import IsServiceAccount
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExample
+from django.db import connection
 
 @extend_schema_view(
     post=extend_schema(
@@ -29,7 +33,9 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExam
 class AnomalyAlertCreateView(generics.CreateAPIView):
     queryset = AnomalyAlert.objects.all()
     serializer_class = AnomalyAlertSerializer
-    permission_classes = [AllowAny] # The ML service needs to post
+    # Contract C endpoint: service-account auth per paper §VI.F.2. The ML
+    # service presents X-Service-Token.
+    permission_classes = [IsServiceAccount]
 
 @extend_schema_view(
     get=extend_schema(
@@ -44,3 +50,31 @@ class AnomalyAlertListView(generics.ListAPIView):
 
     def get_queryset(self):
         return AnomalyAlert.objects.filter(user=self.request.user).order_by('-timestamp')
+
+class RecentAnomaliesView(APIView):
+    @extend_schema(summary="Recent Anomalies (Dashboard)", description="Queries vw_recent_anomalies for dashboard display")
+    def get(self, request, *args, **kwargs):
+        user_id = request.user.id
+        with connection.cursor() as cursor:
+            cursor.execute('''
+                SELECT alert_id, device_id, timestamp, alert_type, expected_wattage_range, actual_wattage, message 
+                FROM vw_recent_anomalies 
+                WHERE user_id = %s
+            ''', [user_id])
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return Response(results)
+
+class BillVsTelemetryView(APIView):
+    @extend_schema(summary="Bill vs Telemetry (Dashboard)", description="Queries vw_bill_vs_telemetry for dashboard display")
+    def get(self, request, *args, **kwargs):
+        user_id = request.user.id
+        with connection.cursor() as cursor:
+            cursor.execute('''
+                SELECT bill_id, meralco_account_number, billing_period, billed_kwh, total_bill_php, telemetry_kwh, kwh_variance 
+                FROM vw_bill_vs_telemetry 
+                WHERE user_id = %s
+            ''', [user_id])
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return Response(results)
