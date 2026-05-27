@@ -39,8 +39,15 @@ export default function OnboardingPage() {
         device_id: trimmedDevice,
       });
       router.push('/dashboard');
-    } catch {
-      setError('Could not save household identity. Please try again.');
+    } catch (err) {
+      const error = err as any;
+      if (error.response?.data) {
+        const data = error.response.data;
+        const messages = Object.values(data).flat();
+        setError(messages.length > 0 ? String(messages[0]) : t('onboarding.errorGeneral'));
+      } else {
+        setError(t('onboarding.errorGeneral'));
+      }
     } finally {
       setSaving(false);
     }
@@ -121,7 +128,7 @@ export default function OnboardingPage() {
                 disabled={saving}
                 className="px-4 py-2.5 rounded-md bg-accent text-accent-ink text-sm font-semibold hover:bg-accent-strong transition-colors disabled:opacity-50"
               >
-                {saving ? `${t('onboarding.submit')}...` : t('onboarding.submit')}
+                {saving ? t('onboarding.submitting') : t('onboarding.submit')}
               </button>
               <Link
                 href="/dashboard"

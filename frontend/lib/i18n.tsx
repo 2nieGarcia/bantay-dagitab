@@ -232,6 +232,10 @@ const en: Dict = {
   'register.loginLink': 'Sign in',
   'register.terms': 'I agree to the terms and privacy policy.',
   'register.submit': 'Create my account',
+  'register.submitting': 'Registering...',
+  'register.errorGeneral': 'Registration failed. Please try again.',
+  'register.placeholder.name': 'Juan Dela Cruz',
+  'register.confirmPassword': 'Confirm password',
 
   'bills.lowConfidence.title': 'OCR confidence is low',
   'bills.lowConfidence.body':
@@ -250,6 +254,8 @@ const en: Dict = {
   'onboarding.skip': 'Skip for now',
   'onboarding.errorRequired': 'Both fields are required to finish setup. Use "Skip for now" if you do not have them yet.',
   'onboarding.errorAccountLength': 'MERALCO account number should be 10 digits.',
+  'onboarding.errorGeneral': 'Could not save household identity. Please try again.',
+  'onboarding.submitting': 'Saving...',
 
   'chat.title': 'Bill assistant',
   'chat.greeting':
@@ -481,6 +487,10 @@ const fil: Dict = {
   'register.loginLink': 'Mag-log in',
   'register.terms': 'Sumasang-ayon ako sa terms at privacy policy.',
   'register.submit': 'Gawin ang account ko',
+  'register.submitting': 'Nirerehistro...',
+  'register.errorGeneral': 'Bigo ang pag-rehistro. Subukan muli.',
+  'register.placeholder.name': 'Juan Dela Cruz',
+  'register.confirmPassword': 'Kumpirmahin ang password',
 
   'bills.lowConfidence.title': 'Mababa ang OCR confidence',
   'bills.lowConfidence.body':
@@ -499,6 +509,8 @@ const fil: Dict = {
   'onboarding.skip': 'Laktawan muna',
   'onboarding.errorRequired': 'Kailangan ang dalawang field para matapos. Gamitin ang "Laktawan muna" kung wala ka pa.',
   'onboarding.errorAccountLength': 'Dapat 10 digits ang MERALCO account number.',
+  'onboarding.errorGeneral': 'Hindi ma-save ang detalye. Subukan muli.',
+  'onboarding.submitting': 'Sini-save...',
 
   'chat.title': 'Katulong sa bill',
   'chat.greeting':
