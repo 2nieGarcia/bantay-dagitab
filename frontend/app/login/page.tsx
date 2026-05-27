@@ -26,6 +26,19 @@ export default function LoginPage() {
       if (res.data.access) {
         Cookies.set('access_token', res.data.access, { path: '/' });
         if (res.data.refresh) Cookies.set('refresh_token', res.data.refresh, { path: '/' });
+
+        // Check whether the household has linked their MERALCO account + device.
+        // If not, send them through onboarding before the dashboard.
+        try {
+          const profileRes = await api.get('/users/profile/');
+          if (!profileRes.data?.has_completed_onboarding) {
+            router.push('/onboarding');
+            return;
+          }
+        } catch {
+          // If the profile fetch fails, default to dashboard — middleware will
+          // re-gate as needed.
+        }
         router.push('/dashboard');
       }
     } catch {

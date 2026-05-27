@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import Cookies from 'js-cookie';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
 import api from '@/lib/api';
@@ -35,7 +36,23 @@ export default function RegisterPage() {
         first_name: firstName,
         last_name: lastName
       });
-      
+
+      // Auto-login so the new user lands on the onboarding flow with credentials
+      // already set. If anything in this leg fails, fall back to the login page
+      // — the account itself was created successfully.
+      try {
+        const tokenRes = await api.post('/token/', { username: email, password });
+        if (tokenRes.data.access) {
+          Cookies.set('access_token', tokenRes.data.access, { path: '/' });
+          if (tokenRes.data.refresh) {
+            Cookies.set('refresh_token', tokenRes.data.refresh, { path: '/' });
+          }
+          router.push('/onboarding');
+          return;
+        }
+      } catch {
+        // fall through to /login
+      }
       router.push('/login');
     } catch {
       setError('Registration failed. Please try again.');

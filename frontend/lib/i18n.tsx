@@ -233,6 +233,24 @@ const en: Dict = {
   'register.terms': 'I agree to the terms and privacy policy.',
   'register.submit': 'Create my account',
 
+  'bills.lowConfidence.title': 'OCR confidence is low',
+  'bills.lowConfidence.body':
+    'Some fields could not be read clearly — the image may be blurred or partially cropped. Verify the values below, edit them manually, or upload a clearer photo.',
+
+  'onboarding.title': 'Connect your household',
+  'onboarding.lede':
+    'Link your MERALCO account and your ESP32 sub-meter. Everything that comes in afterwards — uploaded bills, live readings, anomaly alerts — ties to this household through these two IDs.',
+  'onboarding.meralcoLabel': 'MERALCO account number',
+  'onboarding.meralcoPlaceholder': '1234567890',
+  'onboarding.meralcoHint': 'Ten-digit number printed on your MERALCO bill.',
+  'onboarding.deviceLabel': 'ESP32 device ID',
+  'onboarding.devicePlaceholder': 'meter_manila_001',
+  'onboarding.deviceHint': 'Printed on the device label or shown in the firmware setup.',
+  'onboarding.submit': 'Finish setup',
+  'onboarding.skip': 'Skip for now',
+  'onboarding.errorRequired': 'Both fields are required to finish setup. Use "Skip for now" if you do not have them yet.',
+  'onboarding.errorAccountLength': 'MERALCO account number should be 10 digits.',
+
   'chat.title': 'Bill assistant',
   'chat.greeting':
     "Hi. Ask me anything about your usage or your MERALCO bill, in English or Filipino. You can also attach a photo of your bill here and I will read it.",
@@ -463,6 +481,24 @@ const fil: Dict = {
   'register.loginLink': 'Mag-log in',
   'register.terms': 'Sumasang-ayon ako sa terms at privacy policy.',
   'register.submit': 'Gawin ang account ko',
+
+  'bills.lowConfidence.title': 'Mababa ang OCR confidence',
+  'bills.lowConfidence.body':
+    'Hindi malinaw ang ilan sa mga field — maaaring blurred o nakaputol ang larawan. Suriin ang mga value sa ibaba, i-edit nang manu-mano, o mag-upload ng mas malinaw na larawan.',
+
+  'onboarding.title': 'I-connect ang iyong kabahayan',
+  'onboarding.lede':
+    'I-link ang iyong MERALCO account at ang ESP32 sub-meter mo. Lahat ng papasok pagkatapos — mga na-upload na bill, live readings, mga abiso — naka-ugnay sa kabahayan mo sa dalawang ID na ito.',
+  'onboarding.meralcoLabel': 'MERALCO account number',
+  'onboarding.meralcoPlaceholder': '1234567890',
+  'onboarding.meralcoHint': 'Sampung digit na numero na nakaprint sa MERALCO bill.',
+  'onboarding.deviceLabel': 'ESP32 device ID',
+  'onboarding.devicePlaceholder': 'meter_manila_001',
+  'onboarding.deviceHint': 'Nakaprint sa label ng device, o nakikita sa firmware setup.',
+  'onboarding.submit': 'Tapusin ang setup',
+  'onboarding.skip': 'Laktawan muna',
+  'onboarding.errorRequired': 'Kailangan ang dalawang field para matapos. Gamitin ang "Laktawan muna" kung wala ka pa.',
+  'onboarding.errorAccountLength': 'Dapat 10 digits ang MERALCO account number.',
 
   'chat.title': 'Katulong sa bill',
   'chat.greeting':

@@ -47,7 +47,7 @@ The four find/replace blocks below have been applied to the paper. They are pres
 >
 > **Replace with:** `CREATE MATERIALIZED VIEW vw_user_monthly_consumption AS` + add line: `CREATE UNIQUE INDEX idx_vw_user_monthly_consumption_user_month ON vw_user_monthly_consumption(user_id, month);`
 
-## P1.5 — Screenshots for §VII.A ❌ STILL PENDING
+## P1.5 — Screenshots for §VII.A ✅ DONE
 
 The `[ INSERT IMAGE HERE: Figure VII.A.x ]` placeholders require the live system.
 
