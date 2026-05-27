@@ -9,6 +9,7 @@ import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PersonIcon from '@mui/icons-material/Person';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useBillContext } from '@/components/shared/bill-context';
 import { useLang } from '@/lib/i18n';
 import type { Bill } from '@/components/shared/types';
@@ -18,6 +19,24 @@ function confidenceTone(confidence: number) {
   if (confidence >= 85) return 'text-accent';
   if (confidence >= 75) return 'text-ember';
   return 'text-signal-strong';
+}
+
+// Threshold at which we surface a "image may be blurred / re-upload or edit"
+// hint above the bill detail panel. Combined with a per-field check so a
+// 84%-overall bill that still missed the account number triggers the warning.
+const CONFIDENCE_WARNING_THRESHOLD = 80;
+
+function isLowConfidenceBill(bill: Bill): boolean {
+  if (bill.status !== 'processing') return false;
+  if (bill.ocrConfidence < CONFIDENCE_WARNING_THRESHOLD) return true;
+  // Per-field confidence is set to 0 when extraction missed that field
+  // entirely. Any miss is enough to warn the user.
+  return (
+    bill.extractedData.accountDetails.confidence === 0 ||
+    bill.extractedData.billingPeriod.confidence === 0 ||
+    bill.extractedData.consumption.confidence === 0 ||
+    bill.extractedData.confidence === 0
+  );
 }
 
 function ConfidencePill({ value }: { value: number }) {
@@ -509,6 +528,15 @@ export default function BillsContent() {
                   </div>
                 ) : isOpen && (
                   <div className="border-t border-line px-6 py-7 bg-page space-y-8">
+                    {isLowConfidenceBill(bill) && (
+                      <div className="rounded-md border border-ember bg-ember-soft px-4 py-3 flex items-start gap-3">
+                        <WarningAmberIcon sx={{ fontSize: 20 }} className="text-ember shrink-0 mt-0.5" />
+                        <div className="text-sm leading-relaxed">
+                          <p className="font-medium text-ink mb-0.5">{t('bills.lowConfidence.title')}</p>
+                          <p className="text-ink-2">{t('bills.lowConfidence.body')}</p>
+                        </div>
+                      </div>
+                    )}
                     <section>
                       <header className="flex items-center justify-between mb-4">
                         <h3 className="font-display text-base text-ink inline-flex items-center gap-2">
@@ -618,8 +646,15 @@ export default function BillsContent() {
                       )}
                       <button
                         onClick={() => startEdit(bill)}
-                        className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors"
+                        className={
+                          isLowConfidenceBill(bill)
+                            ? 'px-4 py-2 rounded-md border border-ember bg-ember-soft text-ember text-sm font-semibold hover:bg-ember/15 transition-colors inline-flex items-center gap-1.5'
+                            : 'px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors'
+                        }
                       >
+                        {isLowConfidenceBill(bill) && (
+                          <WarningAmberIcon sx={{ fontSize: 16 }} />
+                        )}
                         {t('bills.editDetails')}
                       </button>
                       <button
