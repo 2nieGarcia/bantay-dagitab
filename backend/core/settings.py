@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'corsheaders',
     'users',
@@ -98,14 +99,7 @@ DATABASES = {
         conn_max_age=600,
         conn_health_checks=True,
     ),
-    'parallel_schema': dj_database_url.parse(
-        os.environ.get("PARALLEL_DATABASE_URL", os.environ.get("DATABASE_URL")),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
 }
-
-DATABASE_ROUTERS = ['core.routers.ParallelSchemaRouter']
 
 
 # Password validation

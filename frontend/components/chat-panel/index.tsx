@@ -24,7 +24,7 @@ type Message = {
 };
 
 export default function ChatPanel({ onClose }: ChatPanelProps) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: 'assistant', content: t('chat.greeting') },
   ]);
@@ -78,7 +78,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     setIsLoading(true);
 
     try {
-      const res = await api.post('/chat/ask/', { query: messageContent });
+      const res = await api.post('/chat/ask/', { query: messageContent, lang });
       const responseContent = res.data.response || t('chat.responseGeneric');
 
       // Initialize the bot message for streaming

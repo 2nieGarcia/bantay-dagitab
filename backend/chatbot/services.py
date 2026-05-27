@@ -13,22 +13,52 @@ from openai import OpenAI, OpenAIError
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = (
-    "You are Bantay-Dagitab's residential energy assistant for post-paid "
-    "MERALCO households in Metro Manila. You will be given the user's "
-    "recent MERALCO bills (OCR-digitized), recent anomaly alerts, and "
-    "live IoT sub-meter readings. Use this context to answer the user's "
-    "question in plain, practical Filipino-English. When comparing bills, "
-    "cite the billing period and amount. When discussing anomalies, cite "
-    "the timestamp and the device. Recommend specific, low-cost "
-    "behavioural changes when relevant. Keep responses under 180 words. "
-    "If the context lacks the data needed to answer, say so honestly."
-)
+SYSTEM_PROMPTS = {
+    "en": (
+        "You are Bantay-Dagitab's residential energy assistant for post-paid "
+        "MERALCO households in Metro Manila. You will be given the user's "
+        "recent MERALCO bills (OCR-digitized), recent anomaly alerts, and "
+        "live IoT sub-meter readings. Use this context to answer the user's "
+        "question in plain, practical English. Do not switch to Filipino or "
+        "Taglish unless the user explicitly writes in Filipino. When comparing "
+        "bills, cite the billing period and amount. When discussing anomalies, "
+        "cite the timestamp and the device. Recommend specific, low-cost "
+        "behavioural changes when relevant. Keep responses under 180 words. "
+        "If the context lacks the data needed to answer, say so honestly."
+    ),
+    "fil": (
+        "Ikaw ang energy assistant ng Bantay-Dagitab para sa mga post-paid na "
+        "kabahayan ng MERALCO sa Metro Manila. Bibigyan ka ng pinakabagong "
+        "MERALCO bills (digitized sa pamamagitan ng OCR), mga anomaly alert, "
+        "at live na IoT sub-meter readings ng user. Gamitin mo ang impormasyong "
+        "ito para sagutin ang tanong sa malinaw at praktikal na Filipino. Huwag "
+        "lumipat sa Ingles maliban kung English ang ginamit ng user. Kapag "
+        "naghahambing ng bill, banggitin ang billing period at halaga. Kapag "
+        "tinatalakay ang anomaly, banggitin ang oras at device. Magmungkahi ng "
+        "tiyak, murang pagbabago sa gawi kung may kinalaman. Huwag lalampas ng "
+        "180 salita. Kung kulang ang impormasyon, sabihin mong walang sapat na "
+        "datos."
+    ),
+}
 
-FALLBACK_RESPONSE = (
-    "The energy assistant is temporarily unavailable. Please try again in a "
-    "moment. Your question has been recorded."
-)
+FALLBACK_RESPONSES = {
+    "en": (
+        "The energy assistant is temporarily unavailable. Please try again in a "
+        "moment. Your question has been recorded."
+    ),
+    "fil": (
+        "Pansamantalang hindi available ang energy assistant. Pakisubukang muli "
+        "mamaya. Naitala na ang iyong tanong."
+    ),
+}
+
+
+def _system_prompt_for(lang: str) -> str:
+    return SYSTEM_PROMPTS.get(lang, SYSTEM_PROMPTS["en"])
+
+
+def _fallback_for(lang: str) -> str:
+    return FALLBACK_RESPONSES.get(lang, FALLBACK_RESPONSES["en"])
 
 
 class LLMClient:
@@ -99,12 +129,13 @@ class LLMClient:
         api_key = os.environ.get("LLM_API_KEY")
         model = os.environ.get("LLM_MODEL")
         timeout = float(os.environ.get("LLM_TIMEOUT_SECONDS", "30"))
+        lang = payload.get("lang", "en")
 
         if not (base_url and api_key and model):
             logger.warning(
                 "LLM not configured (LLM_BASE_URL/LLM_API_KEY/LLM_MODEL missing); returning fallback."
             )
-            return FALLBACK_RESPONSE
+            return _fallback_for(lang)
 
         client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
         user_message = cls._build_user_message(
@@ -116,14 +147,14 @@ class LLMClient:
             completion = client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": _system_prompt_for(lang)},
                     {"role": "user", "content": user_message},
                 ],
                 temperature=0.4,
                 max_tokens=400,
             )
             text = (completion.choices[0].message.content or "").strip()
-            return text or FALLBACK_RESPONSE
+            return text or _fallback_for(lang)
         except OpenAIError as exc:
             logger.exception("LLM call failed: %s", exc)
-            return FALLBACK_RESPONSE
+            return _fallback_for(lang)
