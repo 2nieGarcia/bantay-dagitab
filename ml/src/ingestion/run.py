@@ -9,6 +9,7 @@ from typing import Iterable, List, Optional
 
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from src.db import get_engine as _get_engine
@@ -37,6 +38,13 @@ class IoTReadingBatch(BaseModel):
 
 
 app = FastAPI(title="Baseline Ingestion API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def utc_now_iso() -> str:
@@ -262,6 +270,127 @@ def get_device_summary_db() -> list:
         return [dict(row._mapping) for row in result]
 
 
+def get_readings_with_bills_db(
+    user_account_id: Optional[str] = None,
+    limit: int = 50,
+) -> list:
+    """
+    Query readings joined with OCR bills for the same user and billing month.
+
+    Demonstrates: JOIN with date_trunc and optional filtering.
+    """
+    engine = get_db_engine()
+
+    query = text(
+        """
+        SELECT
+            r.device_id,
+            r.user_account_id,
+            r.timestamp,
+            r.avg_wattage,
+            b.billing_period,
+            b.total_kwh_consumed,
+            b.total_bill_php
+        FROM iot_readings r
+        JOIN ocr_bills b
+          ON r.user_account_id = b.user_account_id
+         AND date_trunc('month', r.timestamp) = date_trunc('month', b.scan_timestamp)
+        WHERE (:user_account_id IS NULL OR r.user_account_id = :user_account_id)
+        ORDER BY r.timestamp DESC
+        LIMIT :limit
+        """
+    )
+
+    with engine.connect() as conn:
+        result = conn.execute(
+            query,
+            {
+                "user_account_id": user_account_id,
+                "limit": limit,
+            },
+        )
+        return [dict(row._mapping) for row in result]
+
+
+def _format_expected_range(predicted: float, threshold: float) -> str:
+    low = max(0.0, predicted - threshold)
+    high = predicted + threshold
+    return f"{low:.0f}-{high:.0f}"
+
+
+def _build_alert_message(actual: float, predicted: float, device_id: str) -> str:
+    if predicted <= 0:
+        return (
+            "Warning: Your current usage is higher than expected for this time "
+            "of day. Check appliances to avoid bill shock at end of billing cycle."
+        )
+    pct = int(round(((actual - predicted) / predicted) * 100))
+    return (
+        "Warning: Your current usage is "
+        f"{pct}% higher than your historical average for this time of day. "
+        "Check appliances to avoid bill shock at end of billing cycle."
+    )
+
+
+def get_alerts_contract_c_db(
+    device_id: Optional[str] = None,
+    limit: int = 50,
+) -> list:
+    """
+    Query anomaly alerts and map to Contract C response format.
+
+    Demonstrates: SELECT with optional filtering and data transformation.
+    """
+    engine = get_db_engine()
+    query = text(
+        """
+        SELECT
+            alert_id,
+            device_id,
+            user_account_id,
+            alert_timestamp,
+            alert_type,
+            actual_wattage,
+            predicted_wattage,
+            residual_wattage,
+            threshold_wattage
+        FROM anomaly_alerts
+        WHERE (:device_id IS NULL OR device_id = :device_id)
+        ORDER BY alert_timestamp DESC
+        LIMIT :limit
+        """
+    )
+
+    with engine.connect() as conn:
+        result = conn.execute(
+            query,
+            {
+                "device_id": device_id,
+                "limit": limit,
+            },
+        )
+        rows = [dict(row._mapping) for row in result]
+
+    outputs = []
+    for row in rows:
+        predicted = float(row.get("predicted_wattage") or 0.0)
+        threshold = float(row.get("threshold_wattage") or 0.0)
+        actual = float(row.get("actual_wattage") or 0.0)
+        outputs.append(
+            {
+                "alert_id": row["alert_id"],
+                "device_id": row["device_id"],
+                "user_account_id": row["user_account_id"],
+                "timestamp": row["alert_timestamp"],
+                "alert_type": row["alert_type"],
+                "expected_wattage_range": _format_expected_range(predicted, threshold),
+                "actual_wattage": actual,
+                "message": _build_alert_message(actual, predicted, row["device_id"]),
+            }
+        )
+    return outputs
+
+
 # ============================================================================
 # FASTAPI ENDPOINTS
 # ============================================================================
@@ -335,6 +464,18 @@ def get_device_list() -> list:
 def get_device_readings(device_id: str, limit: int = 10) -> list:
     """Get recent readings for a device — demonstrates filtered SELECT."""
     return get_readings_by_device_db(device_id, limit)
+
+
+@app.get("/db/readings-with-bills")
+def get_readings_with_bills(user_account_id: Optional[str] = None, limit: int = 50) -> list:
+    """Join IoT readings with OCR bills (same user + billing month)."""
+    return get_readings_with_bills_db(user_account_id=user_account_id, limit=limit)
+
+
+@app.get("/db/alerts")
+def get_alerts_contract_c(device_id: Optional[str] = None, limit: int = 50) -> list:
+    """Get anomaly alerts mapped to Contract C output format."""
+    return get_alerts_contract_c_db(device_id=device_id, limit=limit)
 
 
 # ============================================================================

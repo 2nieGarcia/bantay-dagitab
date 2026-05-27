@@ -282,19 +282,21 @@ def evaluate_device(
     if not folds:
         return []
 
+    excluded_cols = {
+        "timestamp",
+        "avg_wattage",
+        "device_id",
+        "user_account_id",
+        "data_quality_flag",
+        "date",
+        "split",
+        "ingestion_time",
+    }
     feature_cols = [
         col
         for col in df.columns
-        if col
-        not in {
-            "timestamp",
-            "avg_wattage",
-            "device_id",
-            "user_account_id",
-            "data_quality_flag",
-            "date",
-            "split",
-        }
+        if col not in excluded_cols
+        and (pd.api.types.is_numeric_dtype(df[col]) or pd.api.types.is_bool_dtype(df[col]))
     ]
 
     metrics: Dict[str, List[Tuple[float, float, float]]] = {
