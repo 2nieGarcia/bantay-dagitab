@@ -81,7 +81,7 @@ export default function DashboardContent() {
   const { data: anomaliesData = [] } = useQuery<AnomalyApi[]>({
     queryKey: ['recentAnomalies'],
     queryFn: async () => {
-      const res = await api.get('/dashboard/analytics/recent/');
+      const res = await api.get('/analytics/recent-anomalies/');
       return res.data;
     }
   });
@@ -89,7 +89,7 @@ export default function DashboardContent() {
   const { data: indicatorData } = useQuery<ConsumptionIndicatorApi>({
     queryKey: ['consumptionIndicator'],
     queryFn: async () => {
-      const res = await api.get('/dashboard/consumption-indicator/');
+      const res = await api.get('/analytics/consumption-indicator/');
       return res.data;
     }
   });
@@ -97,7 +97,7 @@ export default function DashboardContent() {
   const { data: monthlyData = [] } = useQuery<MonthlyConsumptionApi[]>({
     queryKey: ['monthlyConsumption'],
     queryFn: async () => {
-      const res = await api.get('/dashboard/monthly-consumption/');
+      const res = await api.get('/iot/monthly-consumption/');
       return res.data;
     }
   });
