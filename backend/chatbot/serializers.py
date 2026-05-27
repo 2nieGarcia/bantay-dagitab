@@ -6,6 +6,12 @@ class ChatRequestSerializer(serializers.Serializer):
         help_text="The question or query from the user.",
         max_length=1000
     )
+    lang = serializers.ChoiceField(
+        choices=[('en', 'English'), ('fil', 'Filipino')],
+        required=False,
+        default='en',
+        help_text="Response language. Mirrors the user's Settings → Language choice.",
+    )
 
 class ChatLogSerializer(serializers.ModelSerializer):
     class Meta:

@@ -39,6 +39,7 @@ class ChatbotInteractionView(APIView):
         request_serializer = ChatRequestSerializer(data=request.data)
         request_serializer.is_valid(raise_exception=True)
         user_query = request_serializer.validated_data["query"]
+        lang = request_serializer.validated_data.get("lang", "en")
         user = request.user
 
         with transaction.atomic():
@@ -112,6 +113,7 @@ class ChatbotInteractionView(APIView):
                 "user_account_id": str(user.id),
                 "query_timestamp": now.isoformat(),
                 "user_query": user_query,
+                "lang": lang,
                 "context": {
                     "now": now.isoformat(),
                     "billing_period": billing_period,

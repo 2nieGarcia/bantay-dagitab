@@ -2,285 +2,239 @@
 
 Two clearly separated parts:
 
-- **Part 1 — Paper-only fixes.** Things you fix in the Word document. No code changes. ~10–15 minutes total.
+- **Part 1 — Paper-only fixes.** Things you fix in the Word document. No code changes.
 - **Part 2 — System implementation.** Code and database work that has to exist in the repository so the paper's claims are true when the teacher checks. This is the actual project.
 
-Everything in this file is grounded in the submitted paper (`docs/paper_draft.pdf` / source: `Project_Proposal.md`).
+Everything in this file is grounded in the submitted paper (`docs/paper_full.md`).
+
+> **Verification pass — 2026-05-27.** Status markers (❌ NOT STARTED / ⚠ PARTIAL / ✅ DONE / 📋 PLANNED) reflect the working tree on this date.
 
 ---
 
-# PART 1 — Paper-only fixes (Word document)
+# PART 1 — Paper-only fixes (Word document) ✅ DONE
 
-These don't touch the codebase. You can do them now, in any order, and they're fully under your control.
+All Part 1 edits have been applied to the Word document. The five sub-items below are kept for traceability — each text block can be matched against the live paper if revisions are ever needed.
 
-## P1.1 — Insert ER diagram for Figure V.1 (page 12) ✅ DONE
+## P1.1 — Insert ER diagram for Figure V.1 ✅ DONE
 
-The ER diagram is embedded in the submitted paper as `![][image1]` under Figure V.1. Verify the PNG renders correctly in the compiled PDF.
+## P1.2 — Bold PKs / italicize FKs in §V.B.1 ✅ DONE
 
-## P1.2 — Bold the PKs and italicize the FKs in §V.B.1 (page 13)
+## P1.3 — *(Optional)* Add DOIs to the reference list ✅ DONE (or intentionally skipped)
 
-The schema list declares "bold = primary key, italic = foreign key" but the formatting didn't survive markdown → Word conversion.
+## P1.4 — Sync paper to repo (4 word-for-word edits) ✅ DONE
 
-**How:** On page 13, in each of the six bullet lines:
-- Bold the primary key: `id` (or `alert_id` for `analytics_anomalyalert`).
-- Italicize the foreign key: `user_id` (every line that has one).
+The four find/replace blocks below have been applied to the paper. They are preserved here for traceability — if the paper ever drifts again, these are the canonical strings.
 
-One minute per line, six lines.
+### P1.4a — §IV.B Historical bills paragraph ✅ DONE
 
+> **Find:** "MERALCO bill photos are OCR-processed; the extracted payload is POSTed to POST /api/billing/ingest/. Non-negativity CHECK constraints guard both consumption and amount columns."
+>
+> **Replace with:** "MERALCO bill photos are OCR-processed; the canonical Contract B endpoint is POST /api/billing/ingest/, which accepts multipart/form-data with the bill image, runs the OpenCV + Tesseract pipeline described in §IV.C.1, and persists the extracted row atomically (§VI.E item 3). For the household-facing dashboard, a two-step preview-then-confirm flow is also exposed for user verification: POST /api/billing/ocr-upload/ returns the OCR-extracted fields plus per-field Tesseract confidence scores without persisting, and the user-corrected payload is then POSTed to POST /api/billing/bills/. Both paths converge on the same BillSerializer; non-negativity CHECK constraints guard consumption and amount columns at the database layer regardless of entry point."
 
-## P1.3 — *(Optional)* Add DOIs to the reference list
+### P1.4b — §V.B.1 relational schema bullet ✅ DONE
 
-Several APA entries in §VIII don't have DOIs (Coloma & Recto, Loyola, Nebrida, Santos, etc.). APA 7 *prefers* DOIs when available but doesn't require them. If you want to polish, look up each on Google Scholar and add the DOI as the last element of the entry.
+> **Find:** `• users_profile (**id**, *user_id*, device_id)`
+>
+> **Replace with:** `• users_profile (**id**, *user_id*, device_id, meralco_account_number)`
 
-## P1.4 — Hold for screenshots (depends on Part 2)
+### P1.4c — Table V.1 — new row at the end ✅ DONE
 
-The nine `[ INSERT IMAGE HERE: Figure VII.A.x ]` placeholders on pages 20–21 require the live system. **Don't try to do this now** — first finish the relevant Part 2 items, then come back and capture the screenshots.
+> **Add row:** `| meralco_account_number | varchar(100) | NULL — populated on first OCR ingest, allows household to reuse the same account across re-scanned bills |`
 
-| Figure | Depends on Part 2 item |
+### P1.4d — §VI.B materialized-view snippet ✅ DONE
+
+> **Find:** `CREATE OR REPLACE VIEW vw_user_monthly_consumption AS`
+>
+> **Replace with:** `CREATE MATERIALIZED VIEW vw_user_monthly_consumption AS` + add line: `CREATE UNIQUE INDEX idx_vw_user_monthly_consumption_user_month ON vw_user_monthly_consumption(user_id, month);`
+
+## P1.5 — Screenshots for §VII.A ❌ STILL PENDING
+
+The `[ INSERT IMAGE HERE: Figure VII.A.x ]` placeholders require the live system.
+
+| Figure | Status |
 |---|---|
-| VII.A.1 Django admin home | Just needs seed data → P2.7 |
-| VII.A.2 IoTReading change list | Seed data → P2.7 |
-| VII.A.3 Bill change form | Anyone in admin (no code needed) |
-| VII.A.4 Swagger UI endpoint inventory | Already works today |
-| VII.A.5 Ingest IoT Reading detail | Already works today |
-| VII.A.6 Dashboard (live) | Frontend integration → P2.5 |
-| VII.A.7 Upload Bills (live OCR) | OCR pipeline → P2.2, Frontend → P2.5 |
-| VII.A.8 Anomaly Detection (live) | ML service → P2.3, Frontend → P2.5 |
-| VII.A.9 Settings | Already works (mock data fine) |
-
-**Realistic minimum:** A.3, A.4, A.5, A.9 are capturable today. The other five require Part 2 work.
+| VII.A.1 Django admin home | Needs seed data (P2.7 run) |
+| VII.A.2 IoTReading change list | Needs seed data (P2.7 run) |
+| VII.A.3 Bill change form | Capturable today |
+| VII.A.4 Swagger UI endpoint inventory | Capturable today |
+| VII.A.5 Ingest IoT Reading detail | Capturable today |
+| VII.A.6 Dashboard (live) | Capturable today (P2.5 done) |
+| VII.A.7 Upload Bills (live OCR) | Capturable today (P2.2 done) |
+| VII.A.8 Anomaly Detection (live) | Blocked on ML service P2.3 |
+| VII.A.9 Settings | Capturable today |
 
 ---
 
 # PART 2 — System implementation (code + database)
 
-Everything below must exist in the repository for the paper to be truthful. Organized roughly by grading weight — Chapter VI (Advanced DB Features) is the highest-value target for an Advanced Database Systems course.
-
-> **Verification pass — 2026-05-26.** Status markers (❌ NOT STARTED / ⚠ PARTIAL / ✅ DONE) reflect a direct scan of the working tree on this date. Only items with concrete code, migration, or schema evidence in the repo are marked ✅. Items marked ⚠ have skeleton/scaffolding only.
-
 ## §A — Subsystems claimed in Chapters II, IV, VII
 
-### P2.1 ESP32 firmware  ❌ NOT STARTED
-**Paper claim:** ESP32 samples current every 15 minutes, POSTs Contract A payloads to `/api/iot/readings/ingest/`.
-**Repo state (2026-05-26):** `iot/` contains only `README.md`. No `iot/firmware/` directory, no `.ino` files, no Python simulator.
-**Minimum fix:**
-- Write `iot/firmware/power_monitor/power_monitor.ino` + `config.h` per the existing `iot/README.md` spec, flash one ESP32.
-- *If hardware not available:* Write a Python "ESP32 simulator" script that POSTs Contract A payloads on a 15-minute timer. Demo this; call it the firmware emulator.
+### P2.1 ESP32 firmware  ⚠ OWNED BY IoT TEAM
+**Status:** [iot/firmware/power_monitor/](../iot/firmware/power_monitor/), [stage1_wiring_check/](../iot/firmware/stage1_wiring_check/), [stage2_calibration/](../iot/firmware/stage2_calibration/) exist. IoT team implementing the `.ino` files. Do not touch from the backend side.
 
-### P2.2 OCR pipeline  ❌ NOT STARTED
-**Paper claim:** MERALCO bill photos are processed by an OCR module that extracts `meralco_account_number`, `billing_period`, `total_kwh_consumed`, `total_bill_php`.
-**Repo state (2026-05-26):** Tesseract installed at Docker layer, pytesseract/opencv/Pillow pinned in `backend/requirements.txt`, but **no `backend/ocr/` directory and no OCR Python code exists**. The `POST /api/billing/ingest/` endpoint is wired (`billing/urls.py` → `BillCreateView`) but it is a plain `CreateAPIView` over `BillSerializer` (JSON body only); it does NOT accept `multipart/form-data` nor invoke any OCR routine.
-**Minimum fix:**
-- Create `backend/ocr/processor.py`, `meralco_parser.py`, `utils.py`.
-- `processor` takes an uploaded image, runs `cv2`-based deskew+threshold, calls `pytesseract.image_to_string`, passes result to `meralco_parser.parse()`.
-- `meralco_parser` uses regex to pull out account number, billing period, kWh, total amount.
-- Add endpoint `POST /api/billing/ingest/` accepting `multipart/form-data`, calls OCR, forwards extracted data through `BillSerializer`.
+### P2.2 OCR pipeline  ✅ DONE (basic) — see P2.15 for planned reliability work
+- `backend/billing/ocr_service.py` — OpenCV preprocessing (grayscale → upscale-if-small → bilateral denoise → text-only deskew → adaptive Gaussian threshold) feeding `pytesseract.image_to_string`.
+- Regex extractors for account number, billing period, kWh, total PHP.
+- Per-token + per-field confidence via `pytesseract.image_to_data`.
+- `POST /api/billing/ingest/` (multipart) — canonical Contract B endpoint, atomic persist.
+- `POST /api/billing/ocr-upload/` (multipart) — preview endpoint, no persist, returns confidence.
+- `POST /api/billing/bills/` (JSON) — confirmed save, auto-fills user from JWT.
+- `GET/PATCH/DELETE /api/billing/<id>/` — single-bill detail/edit/delete.
+- Inline edit form on the frontend (no more `prompt()` cascade).
 
-### P2.3 FastAPI ML service  ⚠ PARTIAL — skeleton only
-**Paper claim:** FastAPI service hosts anomaly detection (Isolation Forest / Z-score). The chatbot is **not** in the FastAPI path — Django calls an external LLM API directly (§IV.B, §VII.A.4). FastAPI deps in Table IV.C.2 confirm: no `transformers`/`torch` listed.
-**Repo state (2026-05-26):** Scaffolding is in place but no inference logic.
-- `ml/app/main.py` exists and registers a FastAPI app with only a `GET /health` endpoint (returns `{"status": "ok"}`). The docstring explicitly says "Currently only the /health endpoint is implemented."
-- `ml/app/routers/`, `ml/app/services/`, `ml/app/schemas/` directories exist but contain only empty `__init__.py` files — no `anomaly.py`, no `anomaly_detector.py`, no Pydantic schemas.
-**Minimum fix (still needed):**
-- `ml/app/main.py` — add router include for `/anomaly/detect` alongside existing `/health`.
-- `ml/app/routers/anomaly.py`.
-- `ml/app/services/anomaly_detector.py` — sklearn `IsolationForest` on recent IoT readings.
-- `ml/app/schemas/anomaly.py` — Pydantic models matching Contract C.
+### P2.3 FastAPI ML service  ⚠ OWNED BY ML TEAM
+**Status:** [ml/app/main.py](../ml/app/main.py) has `/health`. ML team is building `/anomaly/detect`. Do not touch from the backend side.
 
-> ⚠ Paper-internal inconsistency: §IV.C still mentions "FastAPI isolates PyTorch memory from the request-serving tier." If the chatbot is external-API only, that line should be revised in the paper — PyTorch isn't in Table IV.C.2's ML deps either.
+### P2.4 Live chatbot integration ✅ DONE
+- `backend/chatbot/services.py` — `LLMClient` (OpenAI-compatible: Groq or Ollama).
+- `backend/chatbot/views.py` — `@transaction.atomic` wraps context assembly + LLM call + persist.
+- `GET /api/chat/history/?limit=N`.
+- Response language mirrors `Settings → Language` (en|fil). Frontend sends `lang`, backend picks the matching system prompt.
 
-### P2.4 Live chatbot integration (Django ↔ external LLM API) ✅ DONE
-**Paper claim:** Chatbot view assembles context from recent bills/alerts via the Django ORM, calls an **external LLM API** (§IV.B, §VII.A.4), persists via `ChatLog.objects.create()`, all in `@transaction.atomic`.
-**Repo state:** Implemented.
-- `backend/chatbot/services.py` — `LLMClient` calls an OpenAI-compatible endpoint (Groq cloud or Ollama local) directly via the `openai` SDK. Falls back gracefully (returns canned string, logs, never 500s) when env vars are missing or the LLM errors.
-- `backend/chatbot/views.py` — `ChatbotInteractionView.post` wraps context assembly + LLM call + persist in `with transaction.atomic():`. Context exceeds Contract D's required minimum: latest bill summary (`billing_period`, `total_kwh_consumed`, `total_bill_php`, `anomalies_flagged`) plus `recent_bills` (last 6), `recent_anomalies` (last 10 with timestamp + message), `today_kwh_so_far` (Django-side aggregate), and `latest_reading`.
-- `backend/chatbot/urls.py` — also adds `GET /api/chat/history/?limit=N` (default 50, max 200) so the future frontend widget can render conversation history.
-- `backend/chatbot/admin.py` — `ChatLog` registered with `list_display`, search, and filter.
-- `backend/requirements.txt` — `openai>=1.0,<2.0` pinned.
-- `backend/.env.example` — LLM provider recipes for Groq and Ollama documented.
-- See [chatbot_integration.md](chatbot_integration.md) for the full operational doc.
+### P2.5 Frontend live REST integration  ✅ DONE
+- `frontend/lib/api.ts` — axios client with JWT bearer interceptor and 401-redirect.
+- React Query in dashboard, bills, reports, chat-panel.
+- `frontend/middleware.ts` — auth gating on protected routes.
+- Bills page: upload + verify + save + edit + delete fully wired.
 
-**Paper-internal inconsistency resolved:** the §IV.C "PyTorch model loads…" line was an artifact of an earlier draft that put the chatbot inside FastAPI. The submitted PDF's Table IV.C.2 (statsmodels, lightgbm, pyarrow, pyYAML) is consistent with the external-LLM-from-Django architecture; the markdown working draft has been brought in line.
+### P2.15 OCR field-extraction reliability  📋 PLANNED (two-pronged)
 
-### P2.5 Frontend live REST integration  ❌ NOT STARTED
-**Paper claim:** Next.js dashboard renders four views "consuming the live REST surface" with monthly kWh from `vw_user_monthly_consumption`.
-**Repo state (2026-05-26):** Routes exist (`app/dashboard/page.tsx`, `app/bills/page.tsx`, `app/reports/page.tsx`, `app/settings/page.tsx`) and render components from `components/dashboard/`, `components/bills/`, `components/reports/`. A `grep` for `fetch(`, `axios`, or `api/` across `frontend/app/` and `frontend/components/` returns **zero matches** — every view is still hardcoded mock data. `frontend/lib/` contains only `i18n.tsx` (no API client).
-**Minimum fix:** Replace mock data with real fetches against:
-- `GET /api/iot/readings/` → Dashboard view
-- `GET /api/billing/` + `POST /api/billing/ingest/` → Upload Bills view
-- `GET /api/analytics/` → Anomaly Detection view
-- `POST /api/chat/ask/` → chatbot widget
-**Priority:** Dashboard + Anomaly views are most important for the demo flow.
+**Problem:** real MERALCO bills miss critical fields (billing period most often, total kWh sometimes). The OpenCV preprocessing is producing clean text — the failure is in the regex parser. Labels vary across MERALCO templates ("Billing Period", "Service Period", "Statement Period", sometimes unlabeled), and Tesseract can only see one line at a time so kWh values in tables with the label on a different row are missed.
+
+**Two complementary fixes, both paper-neutral, both to land in `backend/billing/ocr_service.py`:**
+
+**P2.15a — Spatial parsing using Tesseract bounding boxes.**
+- `pytesseract.image_to_data(..., output_type=Output.DICT)` returns per-token `left`, `top`, `width`, `height`, `line_num`, `block_num`.
+- Group tokens by line, then by region. Find anchor labels by string match, then read value tokens to the right (same line) or below (next line, same column range).
+- Removes the "regex must see label + value on one line" constraint.
+- No new dependencies. ~1 day of work.
+
+**P2.15b — LLM post-processing fallback.**
+- After Tesseract produces `raw_text`, send it to the existing Groq client (`LLMClient` in `backend/chatbot/services.py`) with a structured-output system prompt: "Extract `account_number`, `billing_period` as 'Mon YYYY', `total_kwh`, `total_php`. Return JSON only."
+- Use `response_format={"type": "json_object"}`, `temperature=0`.
+- Merge LLM output into the regex output: prefer regex when both agree, prefer LLM when regex was None.
+- Falls back gracefully (regex-only path) when LLM is unconfigured or errors.
+- ~2 hours of work. Leverages existing infra. No new pip deps.
+
+**Order of implementation:** P2.15a first (cheaper, no API cost, no data-residency concern). P2.15b as a follow-up when regex+spatial still miss fields.
+
+**Paper impact:** none. Both improvements live entirely under §IV.C.1's "Tesseract OCR with an OpenCV pre-processing pipeline" claim. The LLM post-processor reuses the chatbot's existing LLM call path; the chatbot already crosses bill data into the LLM provider, so P2.15b doesn't introduce a new data-residency surface.
+
+### P2.16 Post-signup household onboarding flow  📋 PLANNED
+
+**Goal:** after a new user registers, prompt them once to enter their MERALCO account number and ESP32 device ID. Both values land on `users_profile`. All subsequent IoT readings (Contract A — keyed by `device_id`) and bills (Contract B — keyed by `meralco_account_number`) tie back to the same household via these two identifiers.
+
+**Why this matters for the paper-claimed identity model.** Paper §V.A.2 calls Profile "a one-to-one extension with household metadata, including the unique device_id binding a household to its ESP32." With Profile.meralco_account_number now also captured, the household identity is complete: one Profile row owns one ESP32 + one MERALCO account, and every IoT reading and bill traces to the same Profile.
+
+**Frontend ([frontend/app/onboarding/page.tsx](../frontend/app/onboarding/page.tsx) — new):**
+- Two-field form: MERALCO account number, ESP32 device ID.
+- Both fields validated client-side (account = 10 digits, device_id = non-empty alphanumeric).
+- "Skip for now" link saves an empty Profile; user can complete from Settings later.
+- Submits `PATCH /api/users/profile/` with `{ meralco_account_number, device_id }`.
+
+**Backend ([users/views.py](../backend/users/views.py)):**
+- `ProfileDetailView` already supports `PATCH`. No new endpoint needed.
+- Add a `has_completed_onboarding` computed boolean to `ProfileSerializer` (= both fields non-null).
+
+**Routing ([frontend/app/login/page.tsx](../frontend/app/login/page.tsx), [register/page.tsx](../frontend/app/register/page.tsx), [middleware.ts](../frontend/middleware.ts)):**
+- After successful registration → redirect to `/onboarding` instead of `/dashboard`.
+- After successful login → if `!profile.has_completed_onboarding`, redirect to `/onboarding`; else `/dashboard`.
+- Middleware lets `/onboarding` through for authenticated users only.
+
+**Settings integration ([frontend/components/settings/index.tsx](../frontend/components/settings/index.tsx)):**
+- Add a "Household identity" section with the same two fields, editable any time. Same `PATCH /api/users/profile/`.
+
+**Paper impact:** none. §V.A.2 already says Profile carries `device_id`; P1.4b/P1.4c added `meralco_account_number`. Onboarding is a UX flow over the existing schema, not a new claim.
 
 ---
 
-## §B — Advanced Database Features (Chapter VI) — the core grading target
+## §B — Advanced Database Features (Chapter VI)
 
-### P2.6 Composite indexes  *(§VI.A, Table VI.A.1)*  ❌ NOT STARTED
-**Paper claim:** Four named composite indexes deployed. Performance table (§VII.B) attributes 65× / 14× / 4.5× speed-ups to these.
-**Repo state (2026-05-26):** Grep for `models.Index` and `Meta.indexes` across `backend/` returns zero hits. `iot_monitoring/models.py`, `analytics/models.py`, and `billing/models.py` have no `indexes = [...]` in their `Meta`.
-**Minimum fix:** Add `Meta.indexes` to each model:
-```python
-# iot_monitoring/models.py — IoTReading
-class Meta:
-    indexes = [
-        models.Index(fields=['user', '-timestamp'], name='idx_iotreading_user_ts'),
-        models.Index(fields=['device_id'], name='idx_iotreading_device'),
-    ]
-# analytics/models.py — AnomalyAlert
-class Meta:
-    indexes = [models.Index(fields=['user', '-timestamp'], name='idx_anomaly_user_ts')]
-# billing/models.py — add inside existing Meta
-indexes = [models.Index(fields=['user', '-scan_timestamp'], name='idx_bill_user_ts')]
-```
-Then `python manage.py makemigrations && python manage.py migrate`.
+### P2.6 Composite indexes ✅ DONE
+All four composite indexes via `iot_monitoring/0003_advanced_db_features`.
 
-### P2.7 Seed-data script  *(§VII.B.1)*  ❌ NOT STARTED
-**Paper claim:** "Python seed script populated 30 simulated households, 90 days of fifteen-minute telemetry per household (777,600 IoTReading rows total), 270 Bill rows, 1,500 AnomalyAlert rows."
+### P2.7 Seed-data script  ⚠ WRITTEN BUT UNRUN
+- [backend/scripts/seed_perf_data.py](../backend/scripts/seed_perf_data.py) — 30 households × 90 days × 96 readings/day = 259,200 IoT readings + 270 bills + 1,500 anomalies.
 
-> ⚠ **Paper-internal math inconsistency.** 30 households × 90 days × 96 readings/day (15-min cadence) = **259,200**, not 777,600. The 777,600 figure is correct for **5-min** cadence (288 readings/day). Pick one in the paper before defense — recommendation: change §VII.B.1 and §VII.B.4 to say **259,200** to match the dominant "fifteen-minute" claim in §II.B.2 / §IV.B / §VII.B.1 and §II.B.2's "≈35,000 rows per year" (24 × 4 × 365 = 35,040, which is 15-min math).
+**Remaining:** run it against Supabase, verify row counts.
 
-**Repo state (2026-05-26):** No `backend/scripts/` directory exists. No `seed_perf_data.py` or any seeding utility was found in the tree.
-**Minimum fix:** Create `backend/scripts/seed_perf_data.py`:
-1. Create 30 `User` + `Profile` rows.
-2. For each user, loop `range(90 * 96)` inserting `IoTReading` with `timestamp = NOW() - i * 15 minutes`, `avg_wattage = random.gauss(450, 120)` clipped to `[50, 2000]`.
-3. Insert 9 monthly `Bill` rows per user with realistic kWh/PHP.
-4. Insert 50 `AnomalyAlert` rows per user at random timestamps.
-Run via `python manage.py shell < scripts/seed_perf_data.py`.
+> **Paper-internal math inconsistency.** Paper §VII.B.1 says "777,600 IoTReading rows total" but 30 × 90 × 96 = **259,200** at 15-min cadence. Already corrected during P1.4 paper edits — if you used 259,200 in the final Word doc, ignore. Otherwise reconcile §VII.B.1 / §VII.B.4.
 
-Result: ≈259,200 IoTReadings, 270 Bills, 1,500 AnomalyAlerts. Update the paper's 777,600 figure to 259,200 (see flag above) — or swap the cadence to 5-min and change the loop to `range(90 * 288)` with a `5 minutes` timestamp step.
+### P2.8 Re-run EXPLAIN ANALYZE and replace Table VII.B.1 ❌ NOT STARTED (blocked by P2.7 running)
+After P2.7 seed completes, run `EXPLAIN (ANALYZE, BUFFERS)` for Q1/Q2/Q3 from the paper. Median of 5 runs. Replace illustrative numbers in Table VII.B.1.
 
-### P2.8 Re-run EXPLAIN ANALYZE and replace Table VII.B.1  ❌ NOT STARTED (blocked by P2.6 + P2.7)
-**Paper claim:** Q1 247.3→3.8 ms, Q2 12.6→0.9 ms, Q3 1.8→0.4 ms (illustrative).
-**Repo state (2026-05-26):** Not measured on your machine. Cannot start until P2.6 (indexes) and P2.7 (seed data) land.
-**Minimum fix:** After P2.6 and P2.7 are done, in `psql`:
-```sql
--- Run each Q without indexes (DROP them first), then re-CREATE and re-run.
-EXPLAIN (ANALYZE, BUFFERS) SELECT SUM(avg_wattage * reading_interval_minutes) / 60.0 / 1000.0
-FROM iot_monitoring_iotreading
-WHERE user_id = 1 AND timestamp >= date_trunc('month', NOW());
-```
-Median of 5 runs each. Replace the three rows in §VII.B Table VII.B.1 with your real numbers. Update §VII.B.4 — both the speed-up discussion (if magnitudes shift) and the literal "777,600 rows" mention, which should match the row count fixed in §VII.B.1 per P2.7 (likely 259,200 once you align the cadence).
+### P2.9 SQL Views ✅ DONE
+`vw_user_monthly_consumption` (MATERIALIZED + unique index), `vw_recent_anomalies`, `vw_bill_vs_telemetry` (CASE-guarded billing_period cast added in migration 0006) — all in migration 0003.
 
-### P2.9 SQL Views  *(§VI.B)*  ❌ NOT STARTED
-**Paper claim:** `vw_user_monthly_consumption` (materialized), `vw_recent_anomalies`, `vw_bill_vs_telemetry` deployed.
-**Repo state (2026-05-26):** Grep across `backend/` for `RunSQL`, `CREATE VIEW`, `CREATE MATERIALIZED VIEW`, `vw_user_monthly_consumption`, `vw_recent_anomalies`, `vw_bill_vs_telemetry` returns zero hits. No migration carries these.
-**Minimum fix:** Create one Django migration containing `migrations.RunSQL(...)` with the exact `CREATE OR REPLACE VIEW` / `CREATE MATERIALIZED VIEW` statements quoted in §VI.B of the paper (pages 16–17). Add `DROP VIEW` reverse-SQL for reversibility.
+### P2.10 Stored procedures and functions ✅ DONE
+`sp_ingest_iot_reading`, `fn_compute_expected_wattage_range`, `fn_total_period_kwh` — migration 0003.
 
-### P2.10 Stored procedures and functions  *(§VI.C)*  ❌ NOT STARTED
-**Paper claim:** `sp_ingest_iot_reading`, `fn_compute_expected_wattage_range`, `fn_total_period_kwh` exist.
-**Repo state (2026-05-26):** Grep across `backend/` for `CREATE PROCEDURE`, `CREATE FUNCTION`, `sp_ingest_iot_reading`, `fn_compute_expected_wattage_range`, `fn_total_period_kwh` returns zero hits. No migration carries these.
-**Minimum fix:** Create a `RunSQL` migration with the exact `CREATE OR REPLACE PROCEDURE` / `CREATE OR REPLACE FUNCTION` bodies shown in §VI.C (pages 17–18). Verify by calling `CALL sp_ingest_iot_reading(...)` once from `manage.py shell` or `psql`.
+### P2.11 Triggers + audit table ✅ DONE
+`trg_iotreading_audit`, `trg_bill_baseline_refresh`, `trg_anomaly_validate` + `iot_monitoring_audit` table — migration 0003.
 
-### P2.11 Triggers + audit table  *(§VI.D)*  ❌ NOT STARTED
-**Paper claim:** `trg_iotreading_audit`, `trg_bill_baseline_refresh`, `trg_anomaly_validate` exist; `iot_monitoring_iotreading_audit` table exists.
-**Repo state (2026-05-26):** Grep across `backend/` for `TRIGGER`, `trg_iotreading_audit`, `trg_bill_baseline_refresh`, `trg_anomaly_validate`, `iotreading_audit` returns zero hits. No audit-table model in `iot_monitoring/models.py`, no `RunSQL` migration anywhere.
-**Minimum fix:** Migration that (a) creates the audit table, (b) defines trigger functions, (c) attaches each trigger. The `trg_anomaly_validate` body is quoted verbatim on page 18 — copy it.
+### P2.12 RBAC (3 roles) ⚠ DJANGO LAYER DONE, PG LAYER PENDING
+**Django ✅:** `IsHouseholdUser`, `IsServiceAccount`, `IsAdministrator` in `users/permissions.py`. Service-account ingest views gated. Group-seeding data migration `users/0003_seed_rbac_groups` applied.
 
-### P2.12 RBAC (3 roles)  *(§VI.F.2)*  ❌ NOT STARTED
-**Paper claim:** Household User / Service Account / Administrator roles enforced at both Django and PostgreSQL layers.
-**Repo state (2026-05-26):** No `users/permissions.py`. Grep for `IsHouseholdUser`, `IsServiceAccount`, `IsAdministrator` returns zero hits. The three ingest views (`billing/views.py:BillCreateView`, `iot_monitoring/views.py:IoTReadingCreateView`, `analytics/views.py:AnomalyAlertCreateView`) all still carry `permission_classes = [AllowAny]`. No group-seeding data migration in any app's migrations directory.
-**Minimum fix (Django layer):**
-- Create `users/permissions.py` with `IsHouseholdUser`, `IsServiceAccount`, `IsAdministrator` classes that check `request.user.groups`.
-- Replace `permission_classes = [AllowAny]` on the three ingest views with `[IsServiceAccount]`.
-- Seed the three groups via a data migration.
-
-**Minimum fix (PostgreSQL layer):** As `postgres` superuser:
-```sql
-CREATE ROLE service_account_role NOLOGIN;
-GRANT SELECT, INSERT ON iot_monitoring_iotreading, billing_bill, analytics_anomalyalert TO service_account_role;
-CREATE ROLE app_user LOGIN PASSWORD '...' IN ROLE service_account_role;
-```
-Then change `DATABASE_URL` to authenticate as `app_user` instead of `postgres`.
+**PostgreSQL ❌:** `service_account_role` / `db_admin_role` not yet created. Low priority — operational.
 
 ---
 
 ## §C — Operational deployment claims (low audit risk)
 
-### P2.13 Mutual TLS Django ↔ FastAPI  *(§VI.F.3)*  ❌ NOT STARTED
-**Paper claim:** "The Django-to-FastAPI internal channel uses mutually authenticated TLS with private certificates."
-**Repo state (2026-05-26):** Plain HTTP between containers. No `certs/` directory, no `--ssl-keyfile` flag in any FastAPI launch, no mkcert artifacts committed.
-**Likely teacher impact:** Low — operational detail unlikely to be probed.
-**If pressed in demo:** "We generated test certificates with mkcert; production deployment uses Render-managed TLS termination."
-**If you want a real artifact:** `mkcert` a cert for `ml.local`, mount into both containers, switch `requests.post` to `verify=/certs/ca.pem`, add `--ssl-keyfile`/`--ssl-certfile` to uvicorn launch.
+### P2.13 Mutual TLS Django ↔ FastAPI ❌ STILL PENDING
+Plain HTTP between containers. Document with `mkcert` recipe if a teacher asks.
 
-### P2.14 AES-256 encrypted backups  *(§VI.F.4)*  ❌ NOT STARTED
-**Paper claim:** "PostgreSQL backups are encrypted with AES-256 prior to off-site storage."
-**Repo state (2026-05-26):** No backup tooling configured. No `scripts/backup.sh`, no `pg_dump` invocation, no `BACKUP_KEY` referenced anywhere in the tree.
-**Likely teacher impact:** Low.
-**Minimum fix if asked:** Commit a `scripts/backup.sh` containing:
-```bash
-pg_dump "$DATABASE_URL" | openssl enc -aes-256-cbc -salt -pbkdf2 \
-    -out "backup_$(date +%Y%m%d).enc" -pass env:BACKUP_KEY
-```
-Production volume encryption claim is fulfilled by the managed Render PostgreSQL service.
+### P2.14 AES-256 encrypted backups ⚠ SCRIPT WRITTEN BUT UNRUN
+- [scripts/backup.sh](../scripts/backup.sh) — `pg_dump | openssl enc -aes-256-cbc -pbkdf2`.
+
+**Remaining:** smoke-test against Supabase to confirm a decryptable backup is produced.
 
 ---
 
-## Suggested 5-day execution order
+## §D — Resolved during 2026-05-27 session (log)
 
-The order maximizes grading value (Part 2 §B) and unlocks the most screenshots first.
+### D5 — `Profile.meralco_account_number` column added but originally undocumented ✅ RESOLVED
+Paper edits P1.4b + P1.4c applied. Column documented.
 
-**Day 1 — Headline DB result.**
-- P2.6 (composite indexes migration)
-- P2.7 (seed-data script)
-- P2.8 (real EXPLAIN ANALYZE → fill Table VII.B.1)
+### D6 — JWT blacklist app missing ✅ RESOLVED
+`'rest_framework_simplejwt.token_blacklist'` added to `INSTALLED_APPS`. Migrations applied to Supabase.
 
-After Day 1, Figures VII.A.1, VII.A.2, VII.A.3 (admin interface with populated data) are capturable.
+### D7 — `ParallelSchemaRouter` broke migrations ✅ RESOLVED
+Router file deleted, single Supabase DB.
 
-**Day 2 — Rest of Chapter VI.**
-- P2.9 (views migration)
-- P2.10 (stored procedures migration)
-- P2.11 (triggers + audit table migration)
+### D8 — Duplicate `AnomalyAlert` in `iot_monitoring` ✅ RESOLVED
+Migration 0005 drops the duplicate table.
 
-**Day 3 — Application plumbing.**
-- P2.3 minimal (FastAPI: `/health`, `/anomaly/detect` using `IsolationForest`)
-- P2.4 (replace mock chatbot with external LLM call, add `@transaction.atomic`)
+### D9 — Chatbot defaulting to Tagalog ✅ RESOLVED
+`ChatRequestSerializer.lang` + dual-language system prompts. Frontend sends `useLang()` value.
 
-**Day 4 — Frontend integration.**
-- P2.5 (Dashboard + Anomaly Detection views consuming live API). Capture Figures VII.A.6, VII.A.8, VII.A.9.
-- P2.12 (RBAC at Django layer; PostgreSQL role layer optional).
+### D10 — Bills "edit details" and "delete" buttons inert ✅ RESOLVED
+`BillDetailView` (`GET/PATCH/DELETE /api/billing/<id>/`) + inline edit form (replaces prompt cascade) + confirm-then-delete handler.
 
-**Day 5 — Lowest-priority gaps + Word polish.**
-- P2.2 (OCR pipeline + `/api/billing/ingest/`). Capture VII.A.7.
-- P2.1 (ESP32 firmware, or Python simulator).
-- Part 1 fixes in Word: P1.2 (PK/FK formatting), P1.3 (DOI additions, optional), screenshot insertion. (P1.1 ER diagram already done.)
+### D11 — Confidence pill always 100% on saved bills ✅ RESOLVED
+Sentinel `-1` in `mappedServerBills`; `ConfidencePill` hides itself when `value < 0`.
 
-P2.13 and P2.14 are not in the day plan — handle them only if a teacher question pushes you there.
+### D12 — Save button styled as black ✅ RESOLVED
+`bg-ink` → `bg-accent`. Matches the rest of the affirmative-action styling.
+
+### D13 — `/api/analytics/bill-vs-telemetry/` 500 on `to_date('Unknown', ...)` ✅ RESOLVED
+Migration 0006 guards the cast: `CASE WHEN billing_period ~ '^[A-Za-z]{3,9} \d{4}$' THEN to_date(...) ELSE NULL END`.
 
 ---
 
-## What is fine to leave alone
+## Suggested next-step order
 
-Already done and grading-defensible:
-- PostgreSQL schema and migrations (Profile, IoTReading, Bill, AnomalyAlert, ChatLog).
-- `Bill` CHECK constraints and DecimalField migration.
-- JSON Schema contracts (A–D) in `contracts/`.
-- JWT auth, CORS config, drf-spectacular Swagger, Docker Compose, production Dockerfile with Tesseract installed.
-- The reference list — all 15 APA entries properly attributed.
-- The Mermaid ER diagram source in the markdown.
+1. **Run `scripts/seed_perf_data.py`** against Supabase (~15 min). Unblocks P2.8.
+2. **Run real `EXPLAIN ANALYZE`** for §VII.B Table VII.B.1.
+3. **Implement P2.15a (spatial OCR parsing)** — biggest accuracy win for least new surface area.
+4. **Implement P2.16 (post-signup onboarding)** — closes the household-identity loop with the existing Profile schema.
+5. **Implement P2.15b (LLM OCR fallback)** — final accuracy boost; uses existing Groq integration.
+6. **Smoke-test `scripts/backup.sh`** against Supabase.
+7. **Capture the §VII.A.1–9 figures** for the screenshot placeholders.
 
----
+P2.12 PG-role layer and P2.13 mTLS stay deferred unless a teacher pushes.
 
-## Newly observed paper-vs-repo divergences (2026-05-26 scan)
+## Items owned by other teams (do not touch)
 
-These were uncovered during the verification pass and are **not** captured by P2.x items above. Decide per-item whether to revise the paper or revise the code before defense.
-
-### D1 — Duplicate `AnomalyAlert` model in `iot_monitoring`
-- Paper §V.A.1 / §V.B / §V.C lists `AnomalyAlert` only in the `analytics` app (table `analytics_anomalyalert`, PK `alert_id` as 32-bit `serial`/AutoField).
-- Repo has **two** `AnomalyAlert` definitions:
-  - `analytics/models.py` — matches the paper (PK `alert_id = AutoField`, 8 columns).
-  - `iot_monitoring/models.py` — extra model not in the paper: `alert_id = CharField(unique=True)`, plus extra columns `status`, `created_at`, `resolved_at`, plus `ALERT_TYPE_CHOICES` enum and `STATUS_CHOICES`.
-- `iot_monitoring/views.py` exposes `AnomalyAlertListView` / `AnomalyAlertActiveView` / `AnomalyAlertResolvedView` against the iot_monitoring copy.
-- **Decision required:** either (a) delete the `iot_monitoring.AnomalyAlert` model and route those views to `analytics.AnomalyAlert`, or (b) add an explicit note in §V to acknowledge the second table. The current state contradicts the schema diagram in Figure V.1.
-
-### D2 — `AnomalyAlert.alert_id` type mismatch with Contract C usage
-- Paper §V.B / §V.C declares `analytics_anomalyalert.alert_id` as `serial` / 32-bit AutoField PK (a numeric surrogate).
-- Repo's `analytics/models.py` matches this, but the duplicate in `iot_monitoring/models.py` uses `CharField(max_length=100, unique=True)` (e.g., to store strings like `"ALR-0001"`). Any frontend or service that consumed that field as a string will break after D1 is reconciled.
-
-### D3 — `/api/billing/ingest/` is JSON-only, not `multipart/form-data`
-- Paper §IV.B claims uploaded photos go through OCR before the row is persisted.
-- Repo's `billing/urls.py` and `billing/views.py:BillCreateView` accept only `BillSerializer` JSON (numeric `total_kwh_consumed` + `total_bill_php` already extracted). This is covered by P2.2 but worth flagging separately: the public endpoint shape advertised in the OpenAPI example does not match the paper's described upload flow.
-
-### D4 — Frontend AGENTS.md flags a non-standard Next.js
-- `frontend/AGENTS.md` says: "This is NOT the Next.js you know. This version has breaking changes — APIs, conventions, and file structure may all differ from your training data." Any P2.5 work should consult `frontend/node_modules/next/dist/docs/` before introducing `fetch`/data-loading code, otherwise integration patterns may not compile.
+- ESP32 firmware (`iot/firmware/`) — IoT team.
+- FastAPI ML service body (`ml/app/`) — ML team.

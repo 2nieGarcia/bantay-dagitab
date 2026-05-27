@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import api from '@/lib/api';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -22,6 +21,9 @@ function confidenceTone(confidence: number) {
 }
 
 function ConfidencePill({ value }: { value: number }) {
+  // Sentinel: value < 0 means "not applicable" — used for saved/verified bills
+  // where the OCR confidence concept no longer applies. Hides the pill entirely.
+  if (value < 0) return null;
   const tone = confidenceTone(value);
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs tabular font-medium ${tone}`}>
@@ -37,6 +39,29 @@ function DL({ children }: { children: React.ReactNode }) {
   return <dl className="grid grid-cols-2 gap-x-6 gap-y-4">{children}</dl>;
 }
 
+function applyEditPatch(bill: Bill, patch: Record<string, any>): Bill {
+  return {
+    ...bill,
+    name: patch.billing_period ? `Meralco Bill ${patch.billing_period}` : bill.name,
+    extractedData: {
+      ...bill.extractedData,
+      accountDetails: {
+        ...bill.extractedData.accountDetails,
+        accountNumber: patch.meralco_account_number ?? bill.extractedData.accountDetails.accountNumber,
+      },
+      billingPeriod: {
+        ...bill.extractedData.billingPeriod,
+        startDate: patch.billing_period ?? bill.extractedData.billingPeriod.startDate,
+      },
+      consumption: {
+        ...bill.extractedData.consumption,
+        totalkWh: patch.total_kwh_consumed ?? bill.extractedData.consumption.totalkWh,
+      },
+      totalAmount: patch.total_bill_php ?? bill.extractedData.totalAmount,
+    },
+  };
+}
+
 function Row({ label, value, full = false }: { label: string; value: React.ReactNode; full?: boolean }) {
   return (
     <div className={full ? 'col-span-2' : ''}>
@@ -49,6 +74,14 @@ function Row({ label, value, full = false }: { label: string; value: React.React
 export default function BillsContent() {
   const [expandedBill, setExpandedBill] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [editingBillId, setEditingBillId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({
+    meralco_account_number: '',
+    billing_period: '',
+    total_kwh_consumed: '',
+    total_bill_php: '',
+  });
+  const [editError, setEditError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadedBills, setUploadedBills } = useBillContext();
   const { t } = useLang();
@@ -62,38 +95,41 @@ export default function BillsContent() {
     },
   });
 
+  // Saved bills come back from the server without OCR confidence — the user
+  // has already verified the values. Use sentinel -1 so ConfidencePill hides
+  // itself instead of falsely claiming 100% confidence.
   const mappedServerBills: Bill[] = serverBills.map((b: any) => ({
     id: b.id || b.scan_timestamp,
     name: `Meralco Bill ${b.billing_period || 'Unknown'}`,
     status: 'completed',
     uploadDate: new Date(b.scan_timestamp || Date.now()).toLocaleDateString(),
-    ocrConfidence: 100,
+    ocrConfidence: -1,
     extractedData: {
       accountDetails: {
         accountNumber: b.meralco_account_number || '',
         customerName: '',
         serviceAddress: '',
         meterNumber: '',
-        confidence: 100,
+        confidence: -1,
       },
       billingPeriod: {
         startDate: b.billing_period || '',
         endDate: '',
         daysInPeriod: 30,
         readingDate: b.scan_timestamp || new Date().toISOString(),
-        confidence: 100,
+        confidence: -1,
       },
       consumption: {
         previousReading: 0,
         currentReading: 0,
         totalkWh: b.total_kwh_consumed || 0,
         unit: 'kWh',
-        confidence: 100,
+        confidence: -1,
       },
       charges: [],
       totalAmount: b.total_bill_php || 0,
       dueDate: '',
-      confidence: 100,
+      confidence: -1,
     },
   }));
 
@@ -119,38 +155,40 @@ export default function BillsContent() {
 
       if (res.data.success) {
         const data = res.data.extracted_data || {};
+        const overall = Number(res.data.overall_confidence ?? 0);
+        const fields = res.data.field_confidence || {};
         const newBill: Bill = {
           id: Date.now(),
           name: file.name,
           status: 'processing',
           uploadDate: new Date().toLocaleDateString(),
-          ocrConfidence: 90,
+          ocrConfidence: overall,
           extractedData: {
             accountDetails: {
               accountNumber: data.meralco_account_number || '',
               customerName: '',
               serviceAddress: '',
               meterNumber: '',
-              confidence: 90,
+              confidence: Number(fields.meralco_account_number ?? 0),
             },
             billingPeriod: {
               startDate: data.billing_period || '',
               endDate: '',
               daysInPeriod: 30,
               readingDate: data.scan_timestamp || new Date().toISOString(),
-              confidence: 90,
+              confidence: Number(fields.billing_period ?? 0),
             },
             consumption: {
               previousReading: 0,
               currentReading: 0,
               totalkWh: data.total_kwh_consumed || 0,
               unit: 'kWh',
-              confidence: 90,
+              confidence: Number(fields.total_kwh_consumed ?? 0),
             },
             charges: [],
             totalAmount: data.total_bill_php || 0,
             dueDate: '',
-            confidence: 90,
+            confidence: Number(fields.total_bill_php ?? 0),
           },
         };
         setUploadedBills(prev => [newBill, ...prev]);
@@ -172,10 +210,9 @@ export default function BillsContent() {
   const acceptMutation = useMutation({
     mutationFn: async (bill: Bill) => {
       const payload = {
-        user_account_id: 1,
         scan_timestamp: bill.extractedData.billingPeriod.readingDate,
-        meralco_account_number: bill.extractedData.accountDetails.accountNumber,
-        billing_period: bill.extractedData.billingPeriod.startDate,
+        meralco_account_number: bill.extractedData.accountDetails.accountNumber || 'Unknown',
+        billing_period: bill.extractedData.billingPeriod.startDate || 'Unknown',
         total_kwh_consumed: bill.extractedData.consumption.totalkWh,
         total_bill_php: bill.extractedData.totalAmount,
       };
@@ -192,8 +229,93 @@ export default function BillsContent() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (bill: Bill) => {
+      if (bill.status === 'processing') return null;
+      return api.delete(`/billing/${bill.id}/`);
+    },
+    onSuccess: (_, bill) => {
+      if (bill.status === 'processing') {
+        setUploadedBills(prev => prev.filter(b => b.id !== bill.id));
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['bills'] });
+      }
+      if (expandedBill === bill.id) setExpandedBill(null);
+    },
+    onError: (err) => {
+      console.error(err);
+      alert('Failed to delete bill.');
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ bill, patch }: { bill: Bill; patch: Record<string, any> }) => {
+      if (bill.status === 'processing') return { data: patch };
+      return api.patch(`/billing/${bill.id}/`, patch);
+    },
+    onSuccess: (_, { bill, patch }) => {
+      if (bill.status === 'processing') {
+        setUploadedBills(prev => prev.map(b => b.id === bill.id ? applyEditPatch(b, patch) : b));
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['bills'] });
+      }
+    },
+    onError: (err) => {
+      console.error(err);
+      alert('Failed to update bill.');
+    },
+  });
+
   const handleAccept = (bill: Bill) => {
     acceptMutation.mutate(bill);
+  };
+
+  const handleDelete = (bill: Bill) => {
+    if (!window.confirm(`Delete "${bill.name}"? This cannot be undone.`)) return;
+    deleteMutation.mutate(bill);
+  };
+
+  const startEdit = (bill: Bill) => {
+    setEditForm({
+      meralco_account_number: bill.extractedData.accountDetails.accountNumber || '',
+      billing_period: bill.extractedData.billingPeriod.startDate || '',
+      total_kwh_consumed: String(bill.extractedData.consumption.totalkWh ?? 0),
+      total_bill_php: String(bill.extractedData.totalAmount ?? 0),
+    });
+    setEditError(null);
+    setEditingBillId(bill.id);
+    setExpandedBill(bill.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingBillId(null);
+    setEditError(null);
+  };
+
+  const submitEdit = (bill: Bill) => {
+    const kwh = Number(editForm.total_kwh_consumed);
+    const php = Number(editForm.total_bill_php);
+    if (Number.isNaN(kwh) || Number.isNaN(php) || kwh < 0 || php < 0) {
+      setEditError('kWh and total amount must be non-negative numbers.');
+      return;
+    }
+    setEditError(null);
+    editMutation.mutate(
+      {
+        bill,
+        patch: {
+          meralco_account_number: editForm.meralco_account_number || 'Unknown',
+          billing_period: editForm.billing_period || 'Unknown',
+          total_kwh_consumed: kwh,
+          total_bill_php: php,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditingBillId(null);
+        },
+      },
+    );
   };
 
   return (
@@ -305,7 +427,87 @@ export default function BillsContent() {
                   </div>
                 </button>
 
-                {isOpen && (
+                {isOpen && editingBillId === bill.id ? (
+                  <div className="border-t border-line px-6 py-7 bg-page">
+                    <form
+                      className="space-y-6"
+                      onSubmit={e => { e.preventDefault(); submitEdit(bill); }}
+                    >
+                      <header>
+                        <h3 className="font-display text-base text-ink">{t('bills.editDetails')}</h3>
+                        <p className="text-xs text-ink-3 mt-1 leading-relaxed">
+                          Only the four fields below are persisted. Cancel to leave the saved bill unchanged.
+                        </p>
+                      </header>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                        <label className="block">
+                          <span className="text-xs uppercase tracking-wider text-ink-3 font-medium mb-1.5 block">{t('bills.accountNumber')}</span>
+                          <input
+                            type="text"
+                            value={editForm.meralco_account_number}
+                            onChange={e => setEditForm(f => ({ ...f, meralco_account_number: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-md border border-line-strong bg-surface text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs uppercase tracking-wider text-ink-3 font-medium mb-1.5 block">{t('bills.period')}</span>
+                          <input
+                            type="text"
+                            placeholder="Feb 2024"
+                            value={editForm.billing_period}
+                            onChange={e => setEditForm(f => ({ ...f, billing_period: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-md border border-line-strong bg-surface text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs uppercase tracking-wider text-ink-3 font-medium mb-1.5 block">{t('bills.totalKwh')}</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editForm.total_kwh_consumed}
+                            onChange={e => setEditForm(f => ({ ...f, total_kwh_consumed: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-md border border-line-strong bg-surface text-sm text-ink tabular placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs uppercase tracking-wider text-ink-3 font-medium mb-1.5 block">{t('bills.totalAmountDue')}</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editForm.total_bill_php}
+                            onChange={e => setEditForm(f => ({ ...f, total_bill_php: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-md border border-line-strong bg-surface text-sm text-ink tabular placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                          />
+                        </label>
+                      </div>
+
+                      {editError && (
+                        <p className="text-xs text-signal-strong">{editError}</p>
+                      )}
+
+                      <div className="flex flex-wrap gap-3 pt-4 border-t border-line">
+                        <button
+                          type="submit"
+                          disabled={editMutation.isPending}
+                          className="px-4 py-2 rounded-md bg-accent text-accent-ink text-sm font-medium hover:bg-accent-strong transition-colors disabled:opacity-50"
+                        >
+                          {editMutation.isPending ? `${t('common.save')}...` : t('common.save')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          disabled={editMutation.isPending}
+                          className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors disabled:opacity-50"
+                        >
+                          {t('common.cancel')}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                ) : isOpen && (
                   <div className="border-t border-line px-6 py-7 bg-page space-y-8">
                     <section>
                       <header className="flex items-center justify-between mb-4">
@@ -406,19 +608,26 @@ export default function BillsContent() {
 
                     <div className="flex flex-wrap gap-3 pt-2">
                       {bill.status === 'processing' && (
-                        <button 
+                        <button
                           onClick={() => handleAccept(bill)}
                           disabled={acceptMutation.isPending}
-                          className="px-4 py-2 rounded-md bg-ink text-ink-inverse text-sm font-medium hover:bg-ink-2 transition-colors disabled:opacity-50"
+                          className="px-4 py-2 rounded-md bg-accent text-accent-ink text-sm font-medium hover:bg-accent-strong transition-colors disabled:opacity-50"
                         >
                           {acceptMutation.isPending && acceptMutation.variables?.id === bill.id ? 'Accepting...' : t('bills.accept')}
                         </button>
                       )}
-                      <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
+                      <button
+                        onClick={() => startEdit(bill)}
+                        className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors"
+                      >
                         {t('bills.editDetails')}
                       </button>
-                      <button className="ml-auto px-4 py-2 rounded-md text-sm font-medium text-signal-strong hover:bg-signal-soft transition-colors">
-                        {t('common.delete')}
+                      <button
+                        onClick={() => handleDelete(bill)}
+                        disabled={deleteMutation.isPending}
+                        className="ml-auto px-4 py-2 rounded-md text-sm font-medium text-signal-strong hover:bg-signal-soft transition-colors disabled:opacity-50"
+                      >
+                        {deleteMutation.isPending && deleteMutation.variables?.id === bill.id ? 'Deleting...' : t('common.delete')}
                       </button>
                     </div>
                   </div>

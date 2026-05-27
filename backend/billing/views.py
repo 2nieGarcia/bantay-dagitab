@@ -64,7 +64,15 @@ class BillOCRUploadView(APIView):
 class BillCreateView(generics.CreateAPIView):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
-    permission_classes = [AllowAny] # The OCR bot service needs access
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Auto-attach the authenticated user when the client omits user_account_id.
+        # Lets the frontend's verify-then-confirm flow save without hardcoding an id.
+        if 'user' not in serializer.validated_data:
+            serializer.save(user=self.request.user)
+        else:
+            serializer.save()
 
 @extend_schema_view(
     get=extend_schema(
@@ -79,6 +87,21 @@ class BillListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Bill.objects.filter(user=self.request.user).order_by('-scan_timestamp')
+
+
+@extend_schema_view(
+    get=extend_schema(summary="Get a single bill", responses={200: BillSerializer}),
+    patch=extend_schema(summary="Edit a bill", request=BillSerializer, responses={200: BillSerializer}),
+    put=extend_schema(summary="Replace a bill", request=BillSerializer, responses={200: BillSerializer}),
+    delete=extend_schema(summary="Delete a bill", responses={204: None}),
+)
+class BillDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Detail view scoped to the authenticated user's own bills."""
+    serializer_class = BillSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Bill.objects.filter(user=self.request.user)
 
 
 class BillIngestView(APIView):

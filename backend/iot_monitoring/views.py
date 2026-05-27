@@ -1,7 +1,7 @@
 from rest_framework import generics
-from rest_framework.permissions import AllowAny
-from .models import IoTReading, AnomalyAlert
-from .serializers import IoTReadingSerializer, AnomalyAlertSerializer
+from .models import IoTReading
+from .serializers import IoTReadingSerializer
+from users.permissions import IsServiceAccount
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExample
 
 @extend_schema_view(
@@ -27,7 +27,9 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExam
 class IoTReadingCreateView(generics.CreateAPIView):
     queryset = IoTReading.objects.all()
     serializer_class = IoTReadingSerializer
-    permission_classes = [AllowAny] 
+    # Contract A endpoint: service-account auth per paper §VI.F.2. The ESP32
+    # firmware (or simulator) presents X-Service-Token.
+    permission_classes = [IsServiceAccount]
 
 @extend_schema_view(
     get=extend_schema(

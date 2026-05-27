@@ -1,9 +1,10 @@
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from .models import AnomalyAlert
 from .serializers import AnomalyAlertSerializer
+from users.permissions import IsServiceAccount
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExample
 from django.db import connection
 
@@ -32,7 +33,9 @@ from django.db import connection
 class AnomalyAlertCreateView(generics.CreateAPIView):
     queryset = AnomalyAlert.objects.all()
     serializer_class = AnomalyAlertSerializer
-    permission_classes = [AllowAny] # The ML service needs to post
+    # Contract C endpoint: service-account auth per paper §VI.F.2. The ML
+    # service presents X-Service-Token.
+    permission_classes = [IsServiceAccount]
 
 @extend_schema_view(
     get=extend_schema(
