@@ -2,8 +2,8 @@ from rest_framework import serializers
 from .models import ChatLog
 
 class ChatRequestSerializer(serializers.Serializer):
-    query = serializers.CharField(
-        help_text="The question or query from the user.",
+    user_query = serializers.CharField(
+        help_text="The natural language query from the user.",
         max_length=1000
     )
     lang = serializers.ChoiceField(

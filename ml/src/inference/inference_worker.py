@@ -10,6 +10,8 @@ from typing import Dict, Iterable, List, Tuple
 
 import pandas as pd
 import yaml
+import os
+import requests
 from sqlalchemy import bindparam, text
 
 from src.db import get_engine
@@ -196,6 +198,33 @@ def insert_alerts(conn, rows: List[Dict]) -> None:
     )
     conn.execute(query, rows)
 
+def send_alerts_to_django(rows: List[Dict]) -> None:
+    if not rows:
+        return
+    backend_url = os.environ.get("BACKEND_API_URL", "http://backend:8000")
+    endpoint = f"{backend_url.rstrip('/')}/api/analytics/ingest/"
+    token = os.environ.get("SERVICE_ACCOUNT_TOKEN", "")
+    headers = {"X-Service-Token": token, "Content-Type": "application/json"}
+    
+    for row in rows:
+        expected_min = max(0, row["predicted_wattage"] - row["threshold_wattage"])
+        expected_max = row["predicted_wattage"] + row["threshold_wattage"]
+        payload = {
+            "alert_id": str(row["alert_id"]),
+            "device_id": str(row["device_id"]),
+            "user_account_id": str(row["user_account_id"]),
+            "timestamp": row["alert_timestamp"].isoformat(),
+            "alert_type": "HIGH_USAGE_ANOMALY",
+            "expected_wattage_range": f"{expected_min:.1f}-{expected_max:.1f}",
+            "actual_wattage": row["actual_wattage"],
+            "message": f"Sustained over-consumption detected for {row['consecutive_count']} consecutive intervals."
+        }
+        try:
+            resp = requests.post(endpoint, json=payload, headers=headers, timeout=10)
+            resp.raise_for_status()
+            LOGGER.info(f"Successfully posted alert {row['alert_id']} to Django backend")
+        except Exception as e:
+            LOGGER.error(f"Failed to post alert {row['alert_id']} to backend: {e}")
 
 def mark_processed(conn, ids: Iterable[int]) -> None:
     ids = list(ids)
@@ -315,6 +344,8 @@ def main() -> None:
         insert_alerts(conn, alert_rows)
         mark_processed(conn, readings["id"].tolist())
         upsert_consecutive_counts(conn, consecutive_counts)
+    
+    send_alerts_to_django(alert_rows)
 
     LOGGER.info(
         "Processed %s rows, alerts=%s",

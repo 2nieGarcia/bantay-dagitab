@@ -4,7 +4,8 @@ from .models import IoTReading
 
 
 class IoTReadingSerializer(serializers.ModelSerializer):
-    user_account_id = serializers.PrimaryKeyRelatedField(
+    user_account_id = serializers.SlugRelatedField(
+        slug_field='username',
         source='user',
         queryset=User.objects.all(),
         help_text="User account identifier for user-to-device mapping"
