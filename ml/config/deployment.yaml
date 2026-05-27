@@ -1,0 +1,37 @@
+# config/deployment.yaml
+# Deployment configuration for inference worker
+# Read by src/deployment/inference_worker.py
+
+deployment:
+  model_path: "models/deployed/model.joblib"
+  model_type: "lightgbm"  # Options: persistence, median, ses, lightgbm, holt_winters, lstm
+  previous_model_path: "models/deployed/model_previous.joblib"
+
+database:
+  # SQLite used for baseline; path is relative to project root
+  path: "data/deployment.db"
+
+anomaly:
+  # k * sigma_residuals per device — populated from evaluation output
+  # Keyed by device_id; if a device is missing, uses the 'default' entry
+  thresholds:
+    default:
+      k: 3.0
+      sigma_residuals: 100.0
+    meter_manila_001:
+      k: 2.5
+      sigma_residuals: 85.0
+
+  # Number of consecutive readings exceeding threshold to trigger alert
+  sustained_window: 3
+
+inference:
+  # How far back to look for new readings (minutes)
+  lookback_minutes: 2000000
+
+  # Batch size for processing
+  batch_size: 1000
+
+logging:
+  level: "INFO"
+  predictions_log: true

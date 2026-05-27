@@ -1,0 +1,20 @@
+# config/monitoring.yaml
+# Monitoring configuration for daily health checks
+# Read by src/monitoring/daily_report.py
+
+thresholds:
+  inference_latency_p95_seconds: 120.0
+  error_rate_fraction: 0.01
+  mae_change_pct_24h: 50.0
+  alert_rate_fraction_3day: 0.10
+  alert_rate_fraction_24h: 0.15
+  ks_pvalue_threshold: 0.05
+  psi_threshold: 0.25
+  min_readings_per_device_per_day: 50
+
+email_alerts_enabled: false
+email_smtp_host: "smtp.gmail.com"
+email_smtp_port: 587
+email_sender: ""
+email_recipients: []
+email_password_env_var: "MONITORING_EMAIL_PASSWORD"

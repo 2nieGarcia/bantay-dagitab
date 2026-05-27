@@ -1,9 +1,67 @@
-# FastAPI ML Service Requirements
-# Currently only the /health endpoint; ML deps from paper §IV.C.2 (Table
-# IV.C.2) — scikit-learn, statsmodels, lightgbm, pyarrow, pyYAML — will
-# be added when anomaly detection / forecasting is implemented.
+# =============================================================================
+# Residential Energy Anomaly Detection — ML Pipeline
+# Baseline requirements for laptop-scale development 
+# Target: Python 3.10+
+# =============================================================================
 
-fastapi>=0.109,<1.0
-uvicorn[standard]>=0.27,<1.0
-pydantic>=2.5,<3.0
-python-dotenv>=1.0,<2.0
+# ---------------------------------------------------------------------------
+# Core Data Processing
+# ---------------------------------------------------------------------------
+pandas>=2.0.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+pyarrow>=12.0.0
+
+# ---------------------------------------------------------------------------
+# Configuration & Utilities
+# ---------------------------------------------------------------------------
+PyYAML>=6.0
+python-dotenv>=1.0.0
+click>=8.1.0
+
+# ---------------------------------------------------------------------------
+# Statistical & Baseline Models
+# ---------------------------------------------------------------------------
+scikit-learn>=1.3.0,<1.4.0
+statsmodels>=0.14.0
+
+# ---------------------------------------------------------------------------
+# Advanced Models (optional — install only when benchmarking)
+# ---------------------------------------------------------------------------
+lightgbm>=4.1.0
+# torch>=2.0.0                # Uncomment for LSTM; adds ~2GB install
+# torchvision>=0.15.0         # Required with torch
+
+# ---------------------------------------------------------------------------
+# Inference API
+# ---------------------------------------------------------------------------
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# ---------------------------------------------------------------------------
+# Database (optional — baseline uses files; uncomment for PostgreSQL)
+# ---------------------------------------------------------------------------
+# sqlalchemy>=2.0.0
+# psycopg2-binary>=2.9.0
+
+# ---------------------------------------------------------------------------
+# Message Queue (optional — uncomment for Redis buffering)
+# ---------------------------------------------------------------------------
+# redis>=5.0.0
+
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# ---------------------------------------------------------------------------
+# Code Quality (development only)
+# ---------------------------------------------------------------------------
+# black>=23.0.0               # Uncomment for formatting enforcement
+# flake8>=6.0.0               # Uncomment for linting
+# isort>=5.12.0               # Uncomment for import ordering
+
+# ---------------------------------------------------------------------------
+# Monitoring & Logging
+# ---------------------------------------------------------------------------
+# prometheus-client>=0.18.0   # Uncomment for Prometheus metrics endpoint
