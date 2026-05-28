@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
 import api from '@/lib/api';
+import { motion } from 'framer-motion';
 
 export default function OnboardingPage() {
   const { t } = useLang();
@@ -67,7 +68,12 @@ export default function OnboardingPage() {
         </div>
       </header>
 
-      <div className="flex-1 mx-auto w-full max-w-xl px-6 py-12">
+      <motion.div 
+        className="flex-1 mx-auto w-full max-w-xl px-6 py-12"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      >
         <h1 className="font-display text-4xl text-ink tracking-tight leading-[1.1]">
           {t('onboarding.title')}
         </h1>
@@ -139,7 +145,7 @@ export default function OnboardingPage() {
             </div>
           </form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
