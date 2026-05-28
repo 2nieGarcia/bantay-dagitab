@@ -1,0 +1,12 @@
+major fix
+
+changes:
+- fixed ml/src/inference/inference_worker.py to inject the correct user_account_id derived from the device mapping. (Contract C Violation fix)
+
+- updated the /api/users/profile/ payload to nest first_name and last_name inside a { user: {} } object, to match the  backend's ProfileSerializer design and the Settings page behavior.
+
+- page.tsx change, replace fetch() with api.get('/health/'), following proper naming convention via globally configured axios instance
+
+- dummy IoT simulator & device provisioning:
+on user creation, create a device id along connected to the user immediately. 
+code is created in backend, and will be removed once an IoT device is operational.

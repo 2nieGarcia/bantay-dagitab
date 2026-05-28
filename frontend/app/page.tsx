@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Cookies from 'js-cookie';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
-import { API_URL } from '@/lib/api';
+import api from '@/lib/api';
 
 export default function Home() {
   const { t } = useLang();
@@ -28,9 +28,8 @@ export default function Home() {
 
     const fetchStatus = async () => {
       try {
-        const baseUrl = API_URL.replace(/\/api\/?$/, '');
-        const res = await fetch(`${baseUrl}/health/`);
-        if (res.ok) {
+        const res = await api.get('/health/');
+        if (res.status === 200) {
           setSystemStatus('online');
         } else {
           setSystemStatus('offline');
