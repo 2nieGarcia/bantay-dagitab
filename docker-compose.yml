@@ -12,6 +12,8 @@ services:
     environment:
       - DEBUG=True
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      # Where /api/iot/run-ml/ proxies the "Run inference now" trigger.
+      - ML_SERVICE_URL=http://ml:8001
     env_file:
       - ./.env
     volumes:

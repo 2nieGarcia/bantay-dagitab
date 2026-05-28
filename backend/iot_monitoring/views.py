@@ -1,5 +1,7 @@
+import os
 from datetime import timedelta
 
+import requests
 from django.db.models import Avg, Count, Max, Min, Sum
 from django.utils import timezone
 from rest_framework import generics, status
@@ -78,7 +80,94 @@ class LatestIoTReadingView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(IoTReadingSerializer(reading).data)
 
+
+class RecentIoTReadingsView(APIView):
+    """Recent readings within a rolling minute window — for the live sparkline.
+
+    Returns the user's IoT readings whose timestamp falls within the last
+    N minutes (default 30, max 1440), sorted ascending so the frontend
+    can plot them left-to-right without re-sorting.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Recent IoT Readings (live sparkline)",
+        description="Returns the user's readings from the last `minutes` minutes, ascending.",
+        responses={200: IoTReadingSerializer(many=True)},
+    )
+    def get(self, request):
+        try:
+            minutes = int(request.query_params.get("minutes", 30))
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "minutes must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if minutes < 1 or minutes > 1440:
+            return Response(
+                {"detail": "minutes must be between 1 and 1440."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cutoff = timezone.now() - timedelta(minutes=minutes)
+        qs = (
+            IoTReading.objects.filter(user=request.user, timestamp__gte=cutoff)
+            .order_by("timestamp")
+        )
+        return Response(IoTReadingSerializer(qs, many=True).data)
+
 from django.db import connection
+
+
+class RunMlInferenceView(APIView):
+    """Authenticated trigger that proxies to the ML service's /anomaly/run-once.
+
+    Used by the /simulator page's 'Run inference now' button so the user
+    can fire the ML worker from the browser instead of switching to a
+    terminal. Forwards with the SERVICE_ACCOUNT_TOKEN as X-Service-Token,
+    so the ML service can refuse anyone else (paper §VI.F.2).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Run ML inference now",
+        description=(
+            "Triggers one pass of the ML inference worker via the FastAPI "
+            "ML service. Returns the worker's summary (processed, "
+            "alerts_triggered, pushed, push_failures, cursor)."
+        ),
+        request=None,
+        responses={200: None, 502: None, 503: None},
+    )
+    def post(self, request):
+        ml_url = os.environ.get("ML_SERVICE_URL", "http://ml:8001").rstrip("/")
+        token = os.environ.get("SERVICE_ACCOUNT_TOKEN")
+        if not token:
+            return Response(
+                {"detail": "SERVICE_ACCOUNT_TOKEN is not configured on the backend."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            response = requests.post(
+                f"{ml_url}/anomaly/run-once",
+                headers={"X-Service-Token": token},
+                timeout=60,
+            )
+        except requests.RequestException as exc:
+            return Response(
+                {"detail": f"Could not reach ML service at {ml_url}: {exc}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {"detail": response.text[:500]}
+
+        return Response(payload, status=response.status_code)
 
 
 class DevInjectIoTReadingView(APIView):
@@ -163,6 +252,56 @@ RANGE_WINDOWS = {
     'week': timedelta(days=7),
     'month': timedelta(days=30),
 }
+
+
+class ConsumptionDailyView(APIView):
+    """Per-day kWh totals for the dashboard's 'Use per day' bar chart.
+
+    Each row represents one calendar day in UTC. kWh per reading is
+    avg_wattage_kw * (reading_interval_minutes / 60).
+
+    Returns oldest -> newest so the frontend can render bars left-to-right.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Per-day kWh totals",
+        description="Daily kWh totals for the last N days (1-90). Used by the dashboard's 'Use per day' bar chart.",
+    )
+    def get(self, request):
+        try:
+            days = int(request.query_params.get('days', 7))
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "days must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if days < 1 or days > 90:
+            return Response(
+                {"detail": "days must be between 1 and 90."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        now = timezone.now()
+        cutoff = now - timedelta(days=days)
+        readings = IoTReading.objects.filter(
+            user=request.user,
+            timestamp__gte=cutoff,
+        ).values_list('timestamp', 'avg_wattage', 'reading_interval_minutes')
+
+        buckets: dict[str, float] = {}
+        for ts, watts, interval_min in readings:
+            day_key = ts.date().isoformat()
+            kwh = (float(watts) / 1000.0) * (float(interval_min) / 60.0)
+            buckets[day_key] = buckets.get(day_key, 0.0) + kwh
+
+        # Fill in any zero-data days so the bar chart has a contiguous axis.
+        out = []
+        for i in range(days - 1, -1, -1):
+            day = (now - timedelta(days=i)).date().isoformat()
+            out.append({"date": day, "kwh": round(buckets.get(day, 0.0), 3)})
+        return Response(out)
 
 
 class ConsumptionWindowView(APIView):

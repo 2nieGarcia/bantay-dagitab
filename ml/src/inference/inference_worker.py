@@ -352,11 +352,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
-    args = build_arg_parser().parse_args()
-    setup_logging(args.log_level)
+def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
+    """Execute a single inference cycle and return a summary.
 
-    config = load_config(args.config)
+    Shared implementation between the CLI (``python -m src.inference.run worker``)
+    and the FastAPI endpoint ``POST /anomaly/run-once``. Raises RuntimeError if
+    Django push is not configured — callers should surface that to the user.
+    """
+    if config_path is None:
+        config_path = str(PROJECT_ROOT / "config" / "deployment.yaml")
+
+    config = load_config(config_path)
     deployment_cfg = config.get("deployment", {})
     inference_cfg = config.get("inference", {})
     anomaly_cfg = config.get("anomaly", {})
@@ -367,13 +373,11 @@ def main() -> None:
     history_days = int(inference_cfg.get("history_days", 7))
 
     if not django_configured():
-        LOGGER.error(
+        raise RuntimeError(
             "Django push not configured. Set BACKEND_API_URL and "
             "SERVICE_ACCOUNT_TOKEN before running the worker."
         )
-        sys.exit(2)
 
-    model_payload = None
     model = None
     feature_cols: List[str] = []
     model_path = deployment_cfg.get("model_path")
@@ -393,7 +397,14 @@ def main() -> None:
     readings = fetch_unprocessed(engine, cursor_id, batch_size)
     if readings.empty:
         LOGGER.info("No new readings found (cursor=%s).", cursor_id)
-        return
+        return {
+            "processed": 0,
+            "alerts_triggered": 0,
+            "pushed": 0,
+            "push_failures": 0,
+            "cursor": cursor_id,
+            "skipped_no_readings": True,
+        }
 
     device_ids = sorted(readings["device_id"].unique())
     device_means = fetch_device_means(engine, device_ids)
@@ -492,6 +503,25 @@ def main() -> None:
         push_failures,
         new_cursor,
     )
+
+    return {
+        "processed": len(prediction_rows),
+        "alerts_triggered": len(alert_payloads),
+        "pushed": pushed,
+        "push_failures": push_failures,
+        "cursor": new_cursor,
+        "skipped_no_readings": False,
+    }
+
+
+def main() -> None:
+    args = build_arg_parser().parse_args()
+    setup_logging(args.log_level)
+    try:
+        run_one_pass(args.config)
+    except RuntimeError as exc:
+        LOGGER.error("%s", exc)
+        sys.exit(2)
 
 
 if __name__ == "__main__":

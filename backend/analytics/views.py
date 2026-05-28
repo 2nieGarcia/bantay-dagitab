@@ -41,8 +41,14 @@ class AnomalyAlertCreateView(generics.CreateAPIView):
 @extend_schema_view(
     get=extend_schema(
         summary="List User Anomalies",
-        description="Retrieve historical anomaly alerts for the authenticated user.",
-        responses={200: AnomalyAlertSerializer(many=True)}
+        description=(
+            "Retrieve anomaly alerts for the authenticated user. Optional "
+            "`?status=active|resolved|dismissed` filters by lifecycle state; "
+            "optional `?since=ISO8601` returns only alerts whose timestamp is "
+            "at or after that moment (the dashboard uses this with the "
+            "active range tab so it doesn't need the SQL view)."
+        ),
+        responses={200: AnomalyAlertSerializer(many=True)},
     )
 )
 class AnomalyAlertListView(generics.ListAPIView):
@@ -50,7 +56,21 @@ class AnomalyAlertListView(generics.ListAPIView):
     # Uses default IsAuthenticated
 
     def get_queryset(self):
-        return AnomalyAlert.objects.filter(user=self.request.user).order_by('-timestamp')
+        qs = AnomalyAlert.objects.filter(user=self.request.user)
+        status_param = (self.request.query_params.get('status') or '').lower()
+        if status_param in {
+            AnomalyAlert.STATUS_ACTIVE,
+            AnomalyAlert.STATUS_RESOLVED,
+            AnomalyAlert.STATUS_DISMISSED,
+        }:
+            qs = qs.filter(status=status_param)
+        since = self.request.query_params.get('since')
+        if since:
+            from django.utils.dateparse import parse_datetime
+            parsed = parse_datetime(since)
+            if parsed is not None:
+                qs = qs.filter(timestamp__gte=parsed)
+        return qs.order_by('-timestamp')
 
 
 class AnomalyAlertUpdateView(generics.UpdateAPIView):

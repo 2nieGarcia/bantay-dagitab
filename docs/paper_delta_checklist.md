@@ -60,7 +60,7 @@ The `[ INSERT IMAGE HERE: Figure VII.A.x ]` placeholders require the live system
 | VII.A.5 Ingest IoT Reading detail | Capturable today |
 | VII.A.6 Dashboard (live) | Capturable today (P2.5 done) |
 | VII.A.7 Upload Bills (live OCR) | Capturable today (P2.2 done) |
-| VII.A.8 Anomaly Detection (live) | Blocked on ML service P2.3 |
+| VII.A.8 Anomaly Detection (live) | Capturable today (P2.3 + D18 done) |
 | VII.A.9 Settings | Capturable today |
 
 ---
@@ -82,9 +82,9 @@ The `[ INSERT IMAGE HERE: Figure VII.A.x ]` placeholders require the live system
 - `GET/PATCH/DELETE /api/billing/<id>/` — single-bill detail/edit/delete.
 - Inline edit form on the frontend (no more `prompt()` cascade).
 
-### P2.3 FastAPI ML service  ✅ DONE (rationalized 2026-05-27 — see D14)
-- [ml/app/main.py](../ml/app/main.py) — FastAPI app with `GET /health`.
-- [ml/src/inference/inference_worker.py](../ml/src/inference/inference_worker.py) — cron-driven anomaly detection (ARCHITECTURE §6 "Baseline"). Reads `iot_monitoring_iotreading`, applies k·σ with sustained-3, writes per-row observability to `ml_predictions_log`, advances cursor in `ml_worker_state`.
+### P2.3 FastAPI ML service  ✅ DONE (rationalized 2026-05-27 — see D14; one-click trigger added 2026-05-28 — see D18)
+- [ml/app/main.py](../ml/app/main.py) — FastAPI app with `GET /health` and `POST /anomaly/run-once` (X-Service-Token gated).
+- [ml/src/inference/inference_worker.py](../ml/src/inference/inference_worker.py) — `run_one_pass()` callable returns `{processed, alerts_triggered, pushed, push_failures, cursor, skipped_no_readings}`; used by both CLI `main()` and the FastAPI endpoint.
 - [ml/src/django_client.py](../ml/src/django_client.py) — pushes each sustained-3 trigger to Django's `POST /api/analytics/ingest/` with `X-Service-Token` (paper §VI.F.2).
 - ML-owned schema: [ml/ml_observability_tables.sql](../ml/ml_observability_tables.sql) — only `ml_predictions_log` and `ml_worker_state`.
 - The duplicate ingestion/alerts tables (`iot_readings`, `ocr_bills`, `anomaly_alerts`) and their FastAPI endpoints are gone — Contract A/B/C are now strictly Django-owned, matching paper §IV.B / §VI.F.2.
@@ -100,6 +100,8 @@ The `[ INSERT IMAGE HERE: Figure VII.A.x ]` placeholders require the live system
 - React Query in dashboard, bills, reports, chat-panel.
 - `frontend/middleware.ts` — auth gating on protected routes.
 - Bills page: upload + verify + save + edit + delete fully wired.
+- [frontend/app/simulator/page.tsx](../frontend/app/simulator/) — IoT simulator page: mean-reverting random walk (450 W baseline, 12 % burst, clamped [150, 1600 W]), configurable tick interval, "Trigger spike (×3)" button, "Run inference now" one-click ML trigger with live summary display.
+- [frontend/app/ml-tester/page.tsx](../frontend/app/ml-tester/) — developer test page: inject arbitrary readings then verify alerts appeared.
 
 ### P2.15 OCR field-extraction reliability  📋 PLANNED (two-pronged)
 
@@ -224,6 +226,27 @@ Sentinel `-1` in `mappedServerBills`; `ConfidencePill` hides itself when `value 
 ### D13 — `/api/analytics/bill-vs-telemetry/` 500 on `to_date('Unknown', ...)` ✅ RESOLVED
 Migration 0006 guards the cast: `CASE WHEN billing_period ~ '^[A-Za-z]{3,9} \d{4}$' THEN to_date(...) ELSE NULL END`.
 
+### D18 — One-click ML inference trigger (2026-05-28) ✅ RESOLVED
+Previously the ML inference worker had to be fired manually from a terminal (`python -m src.inference.run worker`). Added a complete trigger chain:
+- `POST /anomaly/run-once` on the FastAPI ML service ([ml/app/main.py](../ml/app/main.py)) — gated by `X-Service-Token`, lazy-imports `run_one_pass()`.
+- `POST /api/iot/run-ml/` on Django ([backend/iot_monitoring/views.py](../backend/iot_monitoring/views.py) — `RunMlInferenceView`) — `IsAuthenticated` gating, proxies to `ML_SERVICE_URL` with the service token, surfaces the worker summary (processed / alerts_triggered / pushed / push_failures / cursor).
+- `ML_SERVICE_URL=http://ml:8001` injected into the backend container via [docker-compose.yml](../docker-compose.yml).
+- "Run inference now" button on [frontend/app/simulator/page.tsx](../frontend/app/simulator/) calls `/api/iot/run-ml/` and shows a one-line result summary (or a "No new readings" message if the cursor was already up-to-date).
+
+### D19 — Simulator page and DevInject endpoint (2026-05-28) ✅ RESOLVED
+- `POST /api/iot/readings/dev-inject/` ([backend/iot_monitoring/views.py](../backend/iot_monitoring/views.py) — `DevInjectIoTReadingView`): `IsAuthenticated` — creates 1-20 synthetic readings owned by the calling user; used by the simulator's Trigger spike and the ml-tester page.
+- `GET /api/iot/readings/recent/?minutes=N` ([backend/iot_monitoring/views.py](../backend/iot_monitoring/views.py) — `RecentIoTReadingsView`): rolling window, 1-1440 min, used by the simulator's live sparkline.
+- [frontend/app/simulator/page.tsx](../frontend/app/simulator/) added as a new protected route.
+
+### D17 — Reports page empty, dashboard tabs inert, no urgent UX for live anomalies ✅ RESOLVED
+The `/reports` page filtered alerts by `alert.status === 'active'` but no `status` field existed on the payload — every alert was hidden. The dashboard's *Month / Week / Day* buttons were decorative-only, and the "active alerts" indicator never flashed when an anomaly landed. Fixed:
+- New `status` column on `AnomalyAlert` (active/resolved/dismissed, default `active`): [analytics/0004_anomalyalert_status](../backend/analytics/migrations/0004_anomalyalert_status.py) + [iot_monitoring/0007_vw_recent_anomalies_status](../backend/iot_monitoring/migrations/0007_vw_recent_anomalies_status.py) recreates `vw_recent_anomalies` to expose it.
+- `PATCH /api/analytics/<id>/` ([backend/analytics/views.py](../backend/analytics/views.py) — `AnomalyAlertUpdateView`) flips status; users can only update their own alerts.
+- `RecentAnomaliesView` now returns active-only by default; pass `?include=all` for history.
+- Reports page ([frontend/components/reports/index.tsx](../frontend/components/reports/index.tsx)) switched from the 7-day view to `/api/analytics/` (full history). "Mark Resolved" / "Dismiss" buttons wired via `useMutation` that invalidates the dashboard query too.
+- Live dashboard: urgent red banner at the top when `anomaliesData.length > 0`, live-meter card polling `/api/iot/readings/latest/` every 10 s, anomaly query auto-refreshes every 20 s, hardcoded `devices.reduce` fallback removed so empty data shows `—`.
+- Dashboard range tabs now functional: new `GET /api/iot/consumption-window/?range=day|week|month` ([backend/iot_monitoring/views.py](../backend/iot_monitoring/views.py) — `ConsumptionWindowView`) returns total kWh / daily avg / reading count for the rolling window; the three stat tiles refetch on tab switch.
+
 ### D16 — Centralized environment configuration ✅ RESOLVED
 Per-service `.env` files (`backend/.env`, `ml/.env`) caused exactly the failure mode they're prone to: a `SERVICE_ACCOUNT_TOKEN` mismatch between the two would have silently dropped every Contract C push. Consolidated to a single `<repo_root>/.env`:
 - Created [.env.example](../.env.example) at the repo root — single source of truth.
@@ -254,13 +277,15 @@ The ML team had built a parallel data layer with its own `iot_readings`, `ocr_bi
 
 ## Suggested next-step order
 
-1. **Run `scripts/seed_perf_data.py`** against Supabase (~15 min). Unblocks P2.8.
-2. **Run real `EXPLAIN ANALYZE`** for §VII.B Table VII.B.1.
-3. **Implement P2.15a (spatial OCR parsing)** — biggest accuracy win for least new surface area.
-4. **Implement P2.16 (post-signup onboarding)** — closes the household-identity loop with the existing Profile schema.
-5. **Implement P2.15b (LLM OCR fallback)** — final accuracy boost; uses existing Groq integration.
-6. **Smoke-test `scripts/backup.sh`** against Supabase.
-7. **Capture the §VII.A.1–9 figures** for the screenshot placeholders.
+1. **`docker compose restart backend ml`** — picks up D18/D19 code changes.
+2. **`python manage.py migrate`** — applies analytics 0004 (status field) + iot_monitoring 0007 (view rebuild).
+3. **Run `scripts/seed_perf_data.py`** against Supabase (~15 min). Unblocks P2.8.
+4. **Run real `EXPLAIN ANALYZE`** for §VII.B Table VII.B.1.
+5. **Capture the §VII.A.1–9 figures** — all nine are now unblocked (VII.A.8 blocked on D18, now done).
+6. **Implement P2.15a (spatial OCR parsing)** — biggest accuracy win for least new surface area.
+7. **Implement P2.16 (post-signup onboarding)** — closes the household-identity loop with the existing Profile schema.
+8. **Implement P2.15b (LLM OCR fallback)** — final accuracy boost; uses existing Groq integration.
+9. **Smoke-test `scripts/backup.sh`** against Supabase.
 
 P2.12 PG-role layer and P2.13 mTLS stay deferred unless a teacher pushes.
 

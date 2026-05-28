@@ -12,7 +12,8 @@ export function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/reports') ||
     request.nextUrl.pathname.startsWith('/settings') ||
     request.nextUrl.pathname.startsWith('/onboarding') ||
-    request.nextUrl.pathname.startsWith('/ml-tester');
+    request.nextUrl.pathname.startsWith('/ml-tester') ||
+    request.nextUrl.pathname.startsWith('/simulator');
 
   if (isProtectedRoute && !token) {
     return NextResponse.redirect(new URL('/login', request.url));
@@ -33,6 +34,7 @@ export const config = {
     '/settings/:path*',
     '/onboarding/:path*',
     '/ml-tester/:path*',
+    '/simulator/:path*',
     '/login',
     '/register',
   ],
