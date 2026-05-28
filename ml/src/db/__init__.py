@@ -20,9 +20,24 @@ DATABASE_URL = os.getenv(
 )
 
 
+_engine: Optional[Engine] = None
+
+
 def get_engine(db_url: Optional[str] = None) -> Engine:
+    global _engine
     url = db_url or DATABASE_URL
-    return create_engine(url)
+    if db_url is not None:
+        kwargs = {}
+        if url.startswith("postgres"):
+            kwargs = {"pool_size": 2, "max_overflow": 0}
+        return create_engine(url, **kwargs)
+    if _engine is None:
+        kwargs = {}
+        if url.startswith("postgres"):
+            kwargs = {"pool_size": 2, "max_overflow": 0}
+        _engine = create_engine(url, **kwargs)
+    return _engine
+
 
 
 def read_sql(query: str, engine: Optional[Engine] = None) -> pd.DataFrame:

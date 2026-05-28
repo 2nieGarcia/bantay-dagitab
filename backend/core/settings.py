@@ -112,10 +112,11 @@ if 'migrate' in sys.argv or 'makemigrations' in sys.argv:
 DATABASES = {
     'default': dj_database_url.parse(
         db_url,
-        conn_max_age=600,
-        conn_health_checks=True,
+        conn_max_age=0,
+        conn_health_checks=False,
     ),
 }
+
 
 
 # Password validation

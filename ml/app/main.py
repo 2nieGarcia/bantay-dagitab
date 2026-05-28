@@ -113,7 +113,7 @@ def run_anomaly_once(
     from src.inference.inference_worker import run_one_pass
 
     try:
-        summary = run_one_pass()
+        summary = run_one_pass(skip_to_recent=True)
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
