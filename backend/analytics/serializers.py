@@ -3,8 +3,7 @@ from .models import AnomalyAlert
 from django.contrib.auth.models import User
 
 class AnomalyAlertSerializer(serializers.ModelSerializer):
-    user_account_id = serializers.SlugRelatedField(
-        slug_field='username',
+    user_account_id = serializers.PrimaryKeyRelatedField(
         source='user', 
         queryset=User.objects.all(),
         help_text="User account identifier for mapping alert to user"

@@ -515,7 +515,7 @@ def run_one_pass(
             consecutive = 0
         consecutive_counts[device_id] = consecutive
 
-        alert_triggered = triggered and consecutive >= sustained_window
+        alert_triggered = triggered and consecutive == sustained_window
         prediction_rows.append(
             {
                 "timestamp": row["timestamp"],
