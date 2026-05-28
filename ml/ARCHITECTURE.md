@@ -350,21 +350,22 @@ This section summarizes the work already completed in the ML folder so the found
 
 ### Pipeline Stages
 
-- Stage 1 (Ingestion): FastAPI ingestion service with file-based and PostgreSQL ingestion paths implemented.
-- Stage 2 (Preprocessing): File mode and PostgreSQL mode implemented; processed flag updates supported.
+- Stage 1 (Ingestion): **Owned by Django** (paper §IV.B Contract A/B endpoints). The ML module retains only a dev-only CSV → Parquet consolidator for synthetic-data runs.
+- Stage 2 (Preprocessing): File mode and DB mode implemented. DB mode now reads Django's `iot_monitoring_iotreading` directly (read-only); the obsolete `processed` flag plumbing was removed when the duplicate `iot_readings` table was retired.
 - Stage 3 (Feature Engineering): Baseline + advanced-lite feature engineering implemented.
 - Stage 4 (Model Training): Six models implemented with walk-forward validation.
 - Stage 5 (Evaluation): Anomaly detection F1 and Diebold-Mariano comparisons implemented; evaluation reports generated.
-- Stage 6 (Deployment): Inference worker implemented; writes predictions and alerts to PostgreSQL.
-- Stage 7 (Monitoring): Daily report generation and email alerting implemented.
+- Stage 6 (Deployment): Inference worker reads `iot_monitoring_iotreading`, advances a cursor in `ml_worker_state`, writes per-row observability rows to `ml_predictions_log`, and pushes each sustained-3 trigger to Django's `POST /api/analytics/ingest/` via Contract C (paper §VI.F.2, X-Service-Token).
+- Stage 7 (Monitoring): Daily report generation and email alerting implemented; reads `ml_predictions_log`.
 
 ### Data and Database
 
-- PostgreSQL schema defined in init_tables.sql with all required tables and indexes.
-- Supabase-backed DATABASE_URL configured via .env.
-- IoT and OCR seed scripts available (seed_postgres.py).
-- Ingestion DB endpoints implemented: /db/stats, /db/devices, /db/readings/{device_id}.
-- JOIN endpoint implemented: /db/readings-with-bills (IoT readings joined to OCR bills by user and billing month).
+- Shared Supabase database with the Django backend (single `DATABASE_URL`).
+- ML-owned tables defined in `ml_observability_tables.sql`:
+  - `ml_predictions_log` — every prediction the inference worker emits.
+  - `ml_worker_state` — cursor (`last_processed_reading_id`) and per-device sustained counters.
+- The earlier duplicate tables (`iot_readings`, `ocr_bills`, `anomaly_alerts`, `predictions_log`, `worker_state`) and the seed scripts that populated them have been removed; Contract A/B/C are owned by Django (`iot_monitoring_iotreading`, `billing_bill`, `analytics_anomalyalert`).
+- Synthetic data generation (`scripts/generate_synthetic_data.py`) still produces local Parquet for offline training. Inserting into the production database is done by `backend/scripts/seed_perf_data.py` (paper §VII.B / P2.7).
 
 ### Artifacts and Outputs
 

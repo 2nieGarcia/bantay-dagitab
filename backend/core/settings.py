@@ -16,10 +16,13 @@ import sys
 import dj_database_url
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Single source of truth for env: <repo_root>/.env.
+# Falls back silently to system env (e.g., docker-compose injects vars
+# directly via env_file, so the file may not exist inside the container).
+load_dotenv(BASE_DIR.parent / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -68,6 +71,14 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+AUTHENTICATION_BACKENDS = [
+    # Resolves the JWT login identifier against either username or email
+    # (case-insensitive). Falls back to the default ModelBackend so the
+    # admin site and other consumers keep working.
+    'users.auth.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]
 
 ROOT_URLCONF = 'core.urls'

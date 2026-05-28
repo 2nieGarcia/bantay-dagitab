@@ -41,8 +41,10 @@ export default function LoginPage() {
         }
         router.push('/dashboard');
       }
-    } catch {
-      setError('Login failed. Please check your credentials.');
+    } catch (err: unknown) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }

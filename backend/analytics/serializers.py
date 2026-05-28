@@ -12,5 +12,5 @@ class AnomalyAlertSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AnomalyAlert
-        fields = ['alert_id', 'user_account_id', 'device_id', 'timestamp', 'alert_type', 'expected_wattage_range', 'actual_wattage', 'message']
+        fields = ['alert_id', 'user_account_id', 'device_id', 'timestamp', 'alert_type', 'expected_wattage_range', 'actual_wattage', 'message', 'status']
         read_only_fields = ['alert_id']

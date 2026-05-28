@@ -1,6 +1,9 @@
 services:
   # Django Backend API
-  # Talks to Supabase Postgres via DATABASE_URL in backend/.env.
+  # All config (SECRET_KEY, DATABASE_URL, LLM_*, SERVICE_ACCOUNT_TOKEN)
+  # comes from the centralized repo-root .env. Copy .env.example to .env
+  # before `docker compose up`. If LLM keys are blank, the chatbot
+  # returns its fallback response instead of failing.
   backend:
     build:
       context: ./backend
@@ -9,13 +12,10 @@ services:
     environment:
       - DEBUG=True
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
-    # Chatbot LLM provider (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL,
-    # LLM_TIMEOUT_SECONDS) AND DATABASE_URL are loaded from backend/.env.
-    # IMPORTANT: copy backend/.env.example to backend/.env before
-    # `docker compose up`. If LLM keys are blank, the chatbot returns
-    # its fallback response instead of failing.
+      # Where /api/iot/run-ml/ proxies the "Run inference now" trigger.
+      - ML_SERVICE_URL=http://ml:8001
     env_file:
-      - ./backend/.env
+      - ./.env
     volumes:
       - ./backend:/app
       - ./contracts:/app/contracts:ro
@@ -27,6 +27,10 @@ services:
 
   # FastAPI ML Service (anomaly detection + forecasting per paper §IV.C).
   # Does NOT host the chatbot — Django calls the external LLM API directly.
+  # All config (DATABASE_URL, SERVICE_ACCOUNT_TOKEN) comes from the
+  # centralized repo-root .env. The service shares Supabase with Django
+  # and reads from Django's iot_monitoring_iotreading; alerts are pushed
+  # to Django via Contract C (paper §VI.F.2, X-Service-Token).
   ml:
     build:
       context: ./ml
@@ -35,8 +39,11 @@ services:
     environment:
       - API_HOST=0.0.0.0
       - API_PORT=8001
-      - DEBUG=True
+      # Override the host-mode default in .env so the worker reaches
+      # the backend container over the docker network.
       - BACKEND_API_URL=http://backend:8000/api
+    env_file:
+      - ./.env
     volumes:
       - ./ml:/app
       - ./contracts:/app/contracts:ro

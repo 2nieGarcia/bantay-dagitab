@@ -3,12 +3,18 @@
 Daily Monitoring Report — Baseline Implementation
 
 Scheduled script (cron daily at midnight) that:
-1. Queries the predictions_log table from the deployment database
+1. Queries the ml_predictions_log table from the deployment database
 2. Computes operational and model performance metrics per device
 3. Detects residual distribution drift via Kolmogorov-Smirnov test
 4. Generates a health status (green/yellow/red) per device
 5. Writes daily_report_YYYY-MM-DD.json to output/monitoring/
 6. Optionally sends email alerts for red-status devices
+
+After schema rationalization, anomaly alerts themselves live in Django's
+`analytics_anomalyalert` (paper Contract C). For monitoring purposes the
+relevant signal is which predictions the worker flagged — captured in
+ml_predictions_log.alert_triggered — so this script no longer queries a
+separate alerts table.
 
 Usage:
     python -m src.monitoring.daily_report
@@ -98,12 +104,12 @@ def load_predictions_log(
         end_date: End of window (exclusive).
 
     Returns:
-        DataFrame with columns from predictions_log table, timestamp as datetime.
+        DataFrame with columns from ml_predictions_log, timestamp as datetime.
     """
     query = text(
         """
         SELECT *
-        FROM predictions_log
+        FROM ml_predictions_log
         WHERE timestamp >= :start_date AND timestamp < :end_date
         ORDER BY timestamp ASC
         """
@@ -122,7 +128,11 @@ def load_alerts_log(
     end_date: datetime,
 ) -> pd.DataFrame:
     """
-    Load anomaly alerts for a given time window.
+    Load triggered-alert rows from ml_predictions_log for a given time window.
+
+    The worker writes one row per scored reading to ml_predictions_log; rows
+    with alert_triggered = TRUE represent the predictions that crossed the
+    sustained-3 anomaly rule and were pushed to Django (Contract C).
 
     Args:
         conn: Read-only database connection.
@@ -130,14 +140,21 @@ def load_alerts_log(
         end_date: End of window (exclusive).
 
     Returns:
-        DataFrame with columns from anomaly_alerts table.
+        DataFrame with columns device_id, alert_timestamp (= timestamp), and
+        the rest of ml_predictions_log for parity with the historical shape.
     """
     query = text(
         """
-        SELECT *
-        FROM anomaly_alerts
-        WHERE alert_timestamp >= :start_date AND alert_timestamp < :end_date
-        ORDER BY alert_timestamp ASC
+        SELECT timestamp AS alert_timestamp,
+               device_id,
+               actual_wattage,
+               predicted_wattage,
+               residual_wattage
+        FROM ml_predictions_log
+        WHERE alert_triggered = TRUE
+          AND timestamp >= :start_date
+          AND timestamp < :end_date
+        ORDER BY timestamp ASC
         """
     )
     params = {"start_date": start_date.isoformat(), "end_date": end_date.isoformat()}
