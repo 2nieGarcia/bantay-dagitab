@@ -77,6 +77,11 @@ credentials.json
 ml/data/
 ml/output/
 ml/models/
+!ml/models/
+ml/models/*
+!ml/models/deployed/
+ml/models/deployed/*
+!ml/models/deployed/model.joblib
 
 # Supabase CLI
 ml/supabase/
