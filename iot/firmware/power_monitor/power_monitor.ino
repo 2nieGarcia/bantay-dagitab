@@ -137,16 +137,29 @@ static bool buildIsoUtc(char *out, size_t len) {
 static float measureRmsCurrent() {
   unsigned long t_end = millis() + RMS_BURST_MS;
   double sq_sum = 0.0;
+  double sum = 0.0;
   uint32_t n = 0;
+  
   while ((long)(millis() - t_end) < 0) {
     int raw = analogRead(CT_PIN);
-    float centered = (float)raw - ADC_BIAS_COUNTS;
-    sq_sum += (double)centered * (double)centered;
+    sum += raw;
+    sq_sum += (double)raw * (double)raw;
     n++;
     yield();
   }
+  
   if (n == 0) return 0.0f;
-  float adc_rms = sqrtf((float)(sq_sum / (double)n));
+  
+  // Calculate dynamic DC bias average
+  float mean = (float)(sum / (double)n);
+  
+  // Calculate true AC variance (mean of squares - square of mean)
+  float variance = (float)((sq_sum / (double)n) - ((double)mean * (double)mean));
+  if (variance < 0.0f) variance = 0.0f;
+  
+  // Pure AC RMS wave size
+  float adc_rms = sqrtf(variance);
+  
   return adc_rms * CT_CALIBRATION;
 }
 

@@ -110,12 +110,31 @@ class RecentIoTReadingsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-
         cutoff = timezone.now() - timedelta(minutes=minutes)
         qs = (
             IoTReading.objects.filter(user=request.user, timestamp__gte=cutoff)
             .order_by("timestamp")
         )
+
+        # Optimize performance: if there are more than 500 records, downsample
+        # to exactly 500 data points. Fetching only ID fields from DB is extremely
+        # fast and avoids instantiating a large number of Django models.
+        id_list = list(qs.values_list('id', flat=True))
+        count = len(id_list)
+        if count > 500:
+            step = count / 500.0
+            downsampled_ids = []
+            for i in range(500):
+                idx = min(int(round(i * step)), count - 1)
+                downsampled_ids.append(id_list[idx])
+            
+            # Ensure the latest reading is included so the current reading value
+            # is always accurately represented on the sparkline
+            if id_list[-1] not in downsampled_ids:
+                downsampled_ids[-1] = id_list[-1]
+
+            qs = IoTReading.objects.filter(id__in=downsampled_ids).order_by("timestamp")
+
         return Response(IoTReadingSerializer(qs, many=True).data)
 
 from django.db import connection

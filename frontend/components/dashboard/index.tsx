@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, memo } from 'react';
 import ComputerIcon from '@mui/icons-material/Computer';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import PowerIcon from '@mui/icons-material/Power';
@@ -125,13 +125,36 @@ function relativeTimeFrom(iso: string): string {
   return `${Math.floor(diffSec / 86400)}d ago`;
 }
 
-function Sparkline({ readings }: { readings: LatestReadingApi[] }) {
+const Sparkline = memo(function Sparkline({ readings }: { readings: LatestReadingApi[] }) {
   // Render an SVG polyline scaled to the container. We use preserveAspectRatio
   // "none" so the chart stretches horizontally as the parent grows; vertical
   // stays proportional to the watt range so spikes are visible.
   const W = 800;
   const H = 80;
-  if (readings.length < 2) {
+
+  const sparklineData = useMemo(() => {
+    if (readings.length < 2) return null;
+    
+    const values = readings.map(r => r.avg_wattage);
+    const minV = Math.min(...values);
+    const maxV = Math.max(...values);
+    const span = Math.max(maxV - minV, 50); // floor so flat lines render visibly
+    
+    const pts = readings
+      .map((r, i) => {
+        const x = (i / (readings.length - 1)) * W;
+        const y = H - ((r.avg_wattage - minV) / span) * (H - 10) - 5;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+      
+    const lastX = W;
+    const lastY = H - ((values[values.length - 1] - minV) / span) * (H - 10) - 5;
+    
+    return { pts, lastX, lastY };
+  }, [readings]);
+
+  if (!sparklineData) {
     return (
       <div className="h-20 w-full rounded-md border border-dashed border-line-strong flex items-center justify-center">
         <p className="text-xs text-ink-3">
@@ -140,19 +163,9 @@ function Sparkline({ readings }: { readings: LatestReadingApi[] }) {
       </div>
     );
   }
-  const values = readings.map(r => r.avg_wattage);
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const span = Math.max(maxV - minV, 50); // floor so flat lines render visibly
-  const pts = readings
-    .map((r, i) => {
-      const x = (i / (readings.length - 1)) * W;
-      const y = H - ((r.avg_wattage - minV) / span) * (H - 10) - 5;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
-  const lastX = W;
-  const lastY = H - ((values[values.length - 1] - minV) / span) * (H - 10) - 5;
+
+  const { pts, lastX, lastY } = sparklineData;
+
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -182,7 +195,7 @@ function Sparkline({ readings }: { readings: LatestReadingApi[] }) {
       <circle cx={lastX} cy={lastY} r={3.5} fill="var(--color-accent-strong)" />
     </svg>
   );
-}
+});
 
 export default function DashboardContent() {
   const { t } = useLang();
@@ -278,7 +291,7 @@ export default function DashboardContent() {
       });
       return res.data;
     },
-    refetchInterval: range === 'day' ? 3_000 : 30_000,
+    refetchInterval: 1000,
     refetchOnWindowFocus: true,
   });
   const latestReading: LatestReadingApi | null =
@@ -404,26 +417,64 @@ export default function DashboardContent() {
       <section className="mb-8 rounded-lg border border-line bg-surface px-6 py-5">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-4 min-w-0">
-            <span
-              className={`relative inline-flex h-3 w-3 rounded-full shrink-0 ${
-                latestReading ? 'bg-accent-strong' : 'bg-ink-3'
-              }`}
-              aria-hidden
-            >
-              {latestReading && (
-                <span className="absolute inset-0 rounded-full bg-accent-strong animate-ping opacity-60" />
-              )}
-            </span>
+            {(() => {
+              // Determine IoT connection freshness:
+              // - "live": latest reading is within the last 2 minutes (IoT device actively posting)
+              // - "stale": latest reading exists but is older than 2 minutes
+              // - "offline": no readings at all
+              const now = Date.now();
+              const latestTs = latestReading ? new Date(latestReading.timestamp).getTime() : 0;
+              const ageMs = latestTs ? now - latestTs : Infinity;
+              const isLive = ageMs < 10 * 1000;   // within 10 seconds
+              const isStale = latestTs > 0 && !isLive;
+
+              const dotColor = isLive
+                ? 'bg-green-500'
+                : isStale
+                  ? 'bg-yellow-500'
+                  : 'bg-ink-3';
+
+              return (
+                <span
+                  className={`relative inline-flex h-3 w-3 rounded-full shrink-0 ${dotColor}`}
+                  aria-hidden
+                >
+                  {isLive && (
+                    <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-60" />
+                  )}
+                </span>
+              );
+            })()}
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-wider font-semibold text-ink-2">
-                Live meter &middot; {range === 'day' ? 'last 24h' : range === 'week' ? 'last 7 days' : 'last 30 days'}
+                {(() => {
+                  const now = Date.now();
+                  const latestTs = latestReading ? new Date(latestReading.timestamp).getTime() : 0;
+                  const ageMs = latestTs ? now - latestTs : Infinity;
+                  const isLive = ageMs < 10 * 1000;
+
+                  if (isLive) {
+                    return (
+                      <>
+                        <span className="text-green-600">● Live from IoT</span>
+                        {' · '}
+                        {range === 'day' ? 'last 24h' : range === 'week' ? 'last 7 days' : 'last 30 days'}
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      Live meter &middot; {range === 'day' ? 'last 24h' : range === 'week' ? 'last 7 days' : 'last 30 days'}
+                    </>
+                  );
+                })()}
               </p>
               {latestReading ? (
                 <p className="text-sm text-ink-3 mt-0.5 tabular truncate">
                   {latestReading.device_id} &middot; {relativeTimeFrom(latestReading.timestamp)}
                 </p>
               ) : (
-                <p className="text-sm text-ink-3 mt-0.5">No readings yet</p>
+                <p className="text-sm text-ink-3 mt-0.5">Waiting for IoT device data&hellip;</p>
               )}
             </div>
           </div>
@@ -435,11 +486,11 @@ export default function DashboardContent() {
                   <span className="text-base text-ink-3 font-sans font-normal ml-1">W</span>
                 </p>
                 <p className="text-xs text-ink-3 mt-1 tabular">
-                  {recentReadings.length} sample{recentReadings.length === 1 ? '' : 's'}
+                  {(latestReading.avg_wattage / 230).toFixed(2)} A &middot; {recentReadings.length} sample{recentReadings.length === 1 ? '' : 's'}
                 </p>
               </>
             ) : (
-              <p className="font-readout text-3xl text-ink-3 leading-none">—</p>
+              <p className="font-readout text-3xl text-ink-3 leading-none">&mdash;</p>
             )}
           </div>
         </div>
