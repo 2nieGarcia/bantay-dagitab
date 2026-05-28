@@ -104,11 +104,12 @@ class RecentIoTReadingsView(APIView):
                 {"detail": "minutes must be an integer."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if minutes < 1 or minutes > 1440:
+        if minutes < 1 or minutes > 45000:
             return Response(
-                {"detail": "minutes must be between 1 and 1440."},
+                {"detail": "minutes must be between 1 and 45000."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
 
         cutoff = timezone.now() - timedelta(minutes=minutes)
         qs = (

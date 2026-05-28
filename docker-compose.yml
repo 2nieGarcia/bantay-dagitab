@@ -53,23 +53,8 @@ services:
       - backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
-  # Frontend (when implemented)
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: bantay-dagitab-frontend
-  #   environment:
-  #     - REACT_APP_API_URL=http://localhost:8000/api
-  #     - REACT_APP_ML_API_URL=http://localhost:8001
-  #   volumes:
-  #     - ./frontend:/app
-  #     - /app/node_modules
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - backend
-  #     - ml
+  # Frontend — run locally with `cd frontend && npm run dev`
+  # (not dockerized to avoid native binary issues with lightningcss/tailwind)
 
 networks:
   default:

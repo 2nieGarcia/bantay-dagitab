@@ -128,6 +128,7 @@ def fetch_device_means(
     engine,
     device_ids: Iterable[str],
     cursor_id: int,
+    lookback_limit: int = 2000,
 ) -> Dict[str, float]:
     """Per-device mean wattage over readings persisted *before* this batch.
 
@@ -137,14 +138,20 @@ def fetch_device_means(
     is the household's pre-spike behaviour. Returns an empty dict for
     devices with no prior history; callers should treat that as "no
     baseline yet" and default predicted to 0 W, not to the current reading.
+
+    ``lookback_limit`` caps the scan to the most recent N rows before the
+    cursor to avoid full-table scans on large datasets over remote DB
+    connections.
     """
     if not device_ids:
         return {}
+    floor_id = max(0, cursor_id - lookback_limit)
     query = text(
         """
         SELECT device_id, AVG(avg_wattage) AS mean_wattage
         FROM iot_monitoring_iotreading
         WHERE device_id IN :device_ids
+          AND id > :floor_id
           AND id <= :cursor_id
         GROUP BY device_id
         """
@@ -152,7 +159,7 @@ def fetch_device_means(
     df = pd.read_sql_query(
         query,
         engine,
-        params={"device_ids": list(device_ids), "cursor_id": cursor_id},
+        params={"device_ids": list(device_ids), "cursor_id": cursor_id, "floor_id": floor_id},
     )
     return {row["device_id"]: float(row["mean_wattage"]) for _, row in df.iterrows()}
 
@@ -370,12 +377,24 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
+def run_one_pass(
+    config_path: Optional[str] = None,
+    *,
+    skip_to_recent: bool = False,
+) -> Dict[str, object]:
     """Execute a single inference cycle and return a summary.
 
     Shared implementation between the CLI (``python -m src.inference.run worker``)
     and the FastAPI endpoint ``POST /anomaly/run-once``. Raises RuntimeError if
     Django push is not configured — callers should surface that to the user.
+
+    Parameters
+    ----------
+    skip_to_recent : bool
+        When *True*, fast-forward the cursor to ``MAX(id) - batch_size``
+        before reading. This lets API-triggered runs (simulator "Spike +
+        run inference") score only the most recent readings instead of
+        grinding through the entire historical backlog.
     """
     if config_path is None:
         config_path = str(PROJECT_ROOT / "config" / "deployment.yaml")
@@ -412,6 +431,29 @@ def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
 
     LOGGER.info("Loading new readings...")
     cursor_id = fetch_cursor(engine)
+
+    # --- skip-to-recent: jump cursor near the tail of the table ----------
+    if skip_to_recent:
+        with engine.connect() as conn:
+            max_id_row = conn.execute(
+                text("SELECT MAX(id) FROM iot_monitoring_iotreading")
+            ).fetchone()
+        max_id = max_id_row[0] if max_id_row and max_id_row[0] else 0
+        target_cursor = max(0, max_id - batch_size)
+        if target_cursor > cursor_id:
+            LOGGER.info(
+                "skip_to_recent: advancing cursor %s → %s (max_id=%s)",
+                cursor_id, target_cursor, max_id,
+            )
+            # Reset consecutive counters — they're stale after a big jump.
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "DELETE FROM ml_worker_state WHERE key LIKE 'consecutive_%'"
+                ))
+                upsert_worker_state(conn, [
+                    {"key": WORKER_STATE_CURSOR_KEY, "value": str(target_cursor)},
+                ])
+            cursor_id = target_cursor
     readings = fetch_unprocessed(engine, cursor_id, batch_size)
     model_loaded = model is not None and bool(feature_cols)
     predictor_mode = "model" if model_loaded else "device_mean_baseline"
