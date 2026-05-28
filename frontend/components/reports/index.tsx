@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 type Alert = {
-  alert_id: string;
+  id: string;
   device_id: string;
   timestamp: string;
   alert_type: string;
@@ -161,11 +161,11 @@ export default function ReportsContent() {
               <ul className="space-y-3">
                 {active.map(a => (
                   <AlertCard
-                    key={a.alert_id}
+                    key={a.id}
                     alert={a}
                     isResolved={false}
-                    isOpen={openId === a.alert_id}
-                    onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
+                    isOpen={openId === a.id}
+                    onToggle={() => setOpenId(openId === a.id ? null : a.id)}
                   />
                 ))}
               </ul>
@@ -188,11 +188,11 @@ export default function ReportsContent() {
               <ul className="space-y-3">
                 {past.map(a => (
                   <AlertCard
-                    key={a.alert_id}
+                    key={a.id}
                     alert={a}
                     isResolved
-                    isOpen={openId === a.alert_id}
-                    onToggle={() => setOpenId(openId === a.alert_id ? null : a.alert_id)}
+                    isOpen={openId === a.id}
+                    onToggle={() => setOpenId(openId === a.id ? null : a.id)}
                   />
                 ))}
               </ul>
