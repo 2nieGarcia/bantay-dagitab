@@ -49,7 +49,11 @@ anomaly:
 inference:
   lookback_minutes: 2000000
   batch_size: 1000
-  history_days: 3650
+  # Rolling history window used to build lag/rolling features when a
+  # joblib model is loaded. 7 days is plenty for the lag_96 (24h) feature
+  # plus a safety margin; values in the hundreds scan the entire table on
+  # every pass and are a perf bomb under load.
+  history_days: 7
 
 logging:
   level: INFO

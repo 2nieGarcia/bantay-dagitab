@@ -130,6 +130,8 @@ export default function SimulatorPage() {
     push_failures?: number;
     cursor?: number;
     skipped_no_readings?: boolean;
+    model_loaded?: boolean;
+    predictor_mode?: string;
     detail?: string;
   };
   const [lastRun, setLastRun] = useState<RunMlSummary | null>(null);
@@ -199,8 +201,9 @@ export default function SimulatorPage() {
           Start the simulator and it will pump synthetic readings shaped like
           a real household — mean-reverting random walk around a 450 W
           baseline, occasional burst events up to ~1500 W. Hit{' '}
-          <span className="font-semibold text-signal-strong">Spike</span> to
-          force a sustained-3 anomaly that the inference worker will pick up.
+          <span className="font-semibold text-signal-strong">Spike + run inference</span>{' '}
+          to force a sustained-3 anomaly and immediately run the worker
+          against it.
         </p>
 
         <div className="mt-10 border border-line rounded-lg bg-surface p-6">
@@ -312,14 +315,26 @@ export default function SimulatorPage() {
 
             <button
               type="button"
-              onClick={() => {
-                injectMutation.mutate({ wattage: 3500, count: 3 });
+              onClick={async () => {
+                // Pause the simulator's auto-tick while we inject the spike
+                // and run inference. Without this, a baseline tick can land
+                // between the spike batch and the worker's read, which
+                // leaves a non-anomalous reading as the chronological tail
+                // of the device and shifts the per-device mean baseline.
+                const wasRunning = running;
+                setRunning(false);
+                try {
+                  await injectMutation.mutateAsync({ wattage: 3500, count: 3 });
+                  await runMlMutation.mutateAsync();
+                } finally {
+                  if (wasRunning) setRunning(true);
+                }
               }}
-              disabled={injectMutation.isPending}
+              disabled={injectMutation.isPending || runMlMutation.isPending}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold bg-signal-soft text-signal-strong border border-signal-strong hover:opacity-90 transition-colors disabled:opacity-50"
             >
               <BoltIcon sx={{ fontSize: 18 }} />
-              Trigger spike (×3)
+              Spike + run inference
             </button>
 
             <button
@@ -348,29 +363,41 @@ export default function SimulatorPage() {
                   <span className="tabular">{lastRun.cursor ?? '—'}</span>.
                 </p>
               ) : lastRun ? (
-                <p className="text-ink-2">
-                  <span className="font-semibold uppercase tracking-wider text-accent mr-2">
-                    Last run
-                  </span>
-                  processed{' '}
-                  <span className="text-ink font-medium tabular">{lastRun.processed}</span>,
-                  alerts triggered{' '}
-                  <span className="text-ink font-medium tabular">
-                    {lastRun.alerts_triggered}
-                  </span>
-                  , pushed{' '}
-                  <span className="text-ink font-medium tabular">{lastRun.pushed}</span>
-                  {lastRun.push_failures && lastRun.push_failures > 0 ? (
-                    <>
-                      , push failures{' '}
-                      <span className="text-signal-strong font-medium tabular">
-                        {lastRun.push_failures}
+                <div className="space-y-1.5">
+                  <p className="text-ink-2">
+                    <span className="font-semibold uppercase tracking-wider text-accent mr-2">
+                      Last run
+                    </span>
+                    processed{' '}
+                    <span className="text-ink font-medium tabular">{lastRun.processed}</span>,
+                    alerts triggered{' '}
+                    <span className="text-ink font-medium tabular">
+                      {lastRun.alerts_triggered}
+                    </span>
+                    , pushed{' '}
+                    <span className="text-ink font-medium tabular">{lastRun.pushed}</span>
+                    {lastRun.push_failures && lastRun.push_failures > 0 ? (
+                      <>
+                        , push failures{' '}
+                        <span className="text-signal-strong font-medium tabular">
+                          {lastRun.push_failures}
+                        </span>
+                      </>
+                    ) : null}
+                    . Cursor →{' '}
+                    <span className="tabular">{lastRun.cursor ?? '—'}</span>.
+                  </p>
+                  <p className="text-ink-3">
+                    <span className="uppercase tracking-wider mr-2">Predictor</span>
+                    {lastRun.model_loaded ? (
+                      <span className="text-ink-2">joblib model loaded</span>
+                    ) : (
+                      <span className="text-ink-2">
+                        fallback baseline (no joblib model — using per-device pre-cursor mean)
                       </span>
-                    </>
-                  ) : null}
-                  . Cursor →{' '}
-                  <span className="tabular">{lastRun.cursor ?? '—'}</span>.
-                </p>
+                    )}
+                  </p>
+                </div>
               ) : null}
             </div>
           )}
@@ -379,11 +406,11 @@ export default function SimulatorPage() {
         <div className="mt-6 text-xs text-ink-3 leading-relaxed space-y-3">
           <p>
             <strong>Demo flow.</strong> Click <strong>Start simulator</strong>{' '}
-            to begin pumping realistic readings, then <strong>Trigger spike (×3)</strong>{' '}
-            and immediately <strong>Run inference now</strong>. The worker
-            scores the new readings and pushes a Contract C alert to Django;
-            the dashboard's red urgent banner should appear within a few
-            seconds of the run completing.
+            to begin pumping realistic readings, then click{' '}
+            <strong>Spike + run inference</strong>. The simulator auto-pauses
+            while three 3500 W readings land back-to-back, the worker scores
+            them, and a Contract C alert lands in Django. The dashboard's
+            red urgent banner should appear within a few seconds.
           </p>
           <p>
             <strong>How the simulator shapes data.</strong> Each tick is a

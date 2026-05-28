@@ -20,6 +20,7 @@ same shared code path (`src.inference.inference_worker.run_one_pass`).
 
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -31,6 +32,7 @@ logging.basicConfig(
     level=logging.INFO if os.environ.get("DEBUG") else logging.WARNING,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+LOGGER = logging.getLogger("ml.app")
 
 app = FastAPI(
     title="Bantay-Dagitab ML Service",
@@ -40,6 +42,38 @@ app = FastAPI(
     ),
     version="0.2.0",
 )
+
+
+# Path to the ML-owned observability schema (paper §VII.A.5 "predictions
+# log"). The file is shipped in-repo alongside this app; we apply it on
+# startup so a fresh Supabase project doesn't 500 the first /anomaly/run-once
+# call with `relation "ml_worker_state" does not exist`. All statements are
+# IF NOT EXISTS, so this is safe to run on every boot.
+_OBSERVABILITY_SQL = Path(__file__).resolve().parent.parent / "ml_observability_tables.sql"
+
+
+@app.on_event("startup")
+def ensure_observability_tables() -> None:
+    if not _OBSERVABILITY_SQL.exists():
+        LOGGER.warning("Observability SQL not found at %s; skipping bootstrap.", _OBSERVABILITY_SQL)
+        return
+    try:
+        from sqlalchemy import text
+
+        from src.db import get_engine
+    except Exception as exc:
+        LOGGER.warning("ML observability bootstrap skipped (import failed): %s", exc)
+        return
+
+    sql = _OBSERVABILITY_SQL.read_text(encoding="utf-8")
+    try:
+        with get_engine().begin() as conn:
+            conn.execute(text(sql))
+        LOGGER.info("ml_worker_state and ml_predictions_log ensured.")
+    except Exception as exc:
+        # Don't crash the app — operators can apply the SQL manually if the
+        # automated path fails (e.g., read-only DB role in some environments).
+        LOGGER.error("Failed to ensure ML observability tables: %s", exc)
 
 
 @app.get("/health", tags=["meta"])
