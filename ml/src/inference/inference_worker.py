@@ -124,7 +124,20 @@ def fetch_unprocessed(engine, cursor_id: int, limit: int) -> pd.DataFrame:
     )
 
 
-def fetch_device_means(engine, device_ids: Iterable[str]) -> Dict[str, float]:
+def fetch_device_means(
+    engine,
+    device_ids: Iterable[str],
+    cursor_id: int,
+) -> Dict[str, float]:
+    """Per-device mean wattage over readings persisted *before* this batch.
+
+    Restricting to ``id <= cursor_id`` is what makes the fallback predictor
+    actually predictive: without it, the spike rows being scored sit inside
+    their own baseline and residual collapses to ~0. With it, the baseline
+    is the household's pre-spike behaviour. Returns an empty dict for
+    devices with no prior history; callers should treat that as "no
+    baseline yet" and default predicted to 0 W, not to the current reading.
+    """
     if not device_ids:
         return {}
     query = text(
@@ -132,10 +145,15 @@ def fetch_device_means(engine, device_ids: Iterable[str]) -> Dict[str, float]:
         SELECT device_id, AVG(avg_wattage) AS mean_wattage
         FROM iot_monitoring_iotreading
         WHERE device_id IN :device_ids
+          AND id <= :cursor_id
         GROUP BY device_id
         """
     ).bindparams(bindparam("device_ids", expanding=True))
-    df = pd.read_sql_query(query, engine, params={"device_ids": list(device_ids)})
+    df = pd.read_sql_query(
+        query,
+        engine,
+        params={"device_ids": list(device_ids), "cursor_id": cursor_id},
+    )
     return {row["device_id"]: float(row["mean_wattage"]) for _, row in df.iterrows()}
 
 
@@ -395,6 +413,9 @@ def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
     LOGGER.info("Loading new readings...")
     cursor_id = fetch_cursor(engine)
     readings = fetch_unprocessed(engine, cursor_id, batch_size)
+    model_loaded = model is not None and bool(feature_cols)
+    predictor_mode = "model" if model_loaded else "device_mean_baseline"
+
     if readings.empty:
         LOGGER.info("No new readings found (cursor=%s).", cursor_id)
         return {
@@ -404,10 +425,12 @@ def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
             "push_failures": 0,
             "cursor": cursor_id,
             "skipped_no_readings": True,
+            "model_loaded": model_loaded,
+            "predictor_mode": predictor_mode,
         }
 
     device_ids = sorted(readings["device_id"].unique())
-    device_means = fetch_device_means(engine, device_ids)
+    device_means = fetch_device_means(engine, device_ids, cursor_id)
     history_cutoff = datetime.now(timezone.utc) - pd.Timedelta(days=history_days)
     history_by_device = fetch_recent_history(engine, device_ids, history_cutoff)
     consecutive_counts = load_consecutive_counts(engine, device_ids)
@@ -420,7 +443,10 @@ def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
         device_id = row["device_id"]
         user_account_id = row["user_account_id"]
         actual = float(row["avg_wattage"])
-        predicted = device_means.get(device_id, actual)
+        # No-history fallback: treat predicted as 0 W (not as `actual`).
+        # If we mirror `actual`, residual collapses to 0 and a brand-new
+        # device can never raise its first anomaly.
+        predicted = device_means.get(device_id, 0.0)
         if model is not None and feature_cols:
             history_df = history_by_device.get(device_id)
             feature_row = build_feature_row(
@@ -496,8 +522,9 @@ def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
             LOGGER.error("Contract C push failed: %s", exc)
 
     LOGGER.info(
-        "Processed %s rows, alerts_triggered=%s, pushed=%s, push_failures=%s, cursor=%s",
+        "Processed %s rows (predictor=%s), alerts_triggered=%s, pushed=%s, push_failures=%s, cursor=%s",
         len(prediction_rows),
+        predictor_mode,
         len(alert_payloads),
         pushed,
         push_failures,
@@ -511,6 +538,8 @@ def run_one_pass(config_path: Optional[str] = None) -> Dict[str, object]:
         "push_failures": push_failures,
         "cursor": new_cursor,
         "skipped_no_readings": False,
+        "model_loaded": model_loaded,
+        "predictor_mode": predictor_mode,
     }
 
 
