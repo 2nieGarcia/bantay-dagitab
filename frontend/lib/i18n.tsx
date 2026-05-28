@@ -81,7 +81,7 @@ const en: Dict = {
   'dashboard.range.day': 'Today',
   'dashboard.projectionLabel': 'Projected bill on May 31',
   'dashboard.projectionContext':
-    'Up by {amount} from April. Your refrigerator and aircon are the biggest reasons.',
+    'Up by {amount} from your previous bill cycle.',
   'dashboard.statConsumption': 'Consumption this month',
   'dashboard.statDaily': 'Daily average',
   'dashboard.statRate': 'Rate per kWh',
@@ -331,7 +331,7 @@ const fil: Dict = {
   'dashboard.range.day': 'Araw-araw',
   'dashboard.projectionLabel': 'Tinatayang bill sa Mayo 31',
   'dashboard.projectionContext':
-    'Mas mataas ng {amount} kaysa noong Abril. Ang refrigerator at aircon ang pinaka-malaking dahilan.',
+    'Mas mataas ng {amount} kaysa sa nakaraang bill.',
   'dashboard.statConsumption': 'Konsumo (buwan)',
   'dashboard.statDaily': 'Average per araw',
   'dashboard.statRate': 'Presyo per kWh',

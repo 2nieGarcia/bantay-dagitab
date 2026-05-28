@@ -23,6 +23,14 @@ function SettingsSection({
   );
 }
 
+function ComingSoonPill() {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-elevated text-ink-3 border border-line">
+      Coming soon
+    </span>
+  );
+}
+
 function LanguageChoice({
   value,
   current,
@@ -242,19 +250,25 @@ export default function SettingsContent() {
         >
           <ul className="divide-y divide-line">
             <li className="py-3 flex items-center justify-between gap-4">
-              <span className="text-sm text-ink">{t('settings.notifications.emailAlerts')}</span>
+              <span className="inline-flex items-center gap-2 text-sm text-ink-3">
+                {t('settings.notifications.emailAlerts')}
+                <ComingSoonPill />
+              </span>
               <input
                 type="checkbox"
-                defaultChecked
-                className="h-4 w-4 rounded border-line-strong accent-(--color-accent)"
+                disabled
+                className="h-4 w-4 rounded border-line-strong accent-(--color-accent) opacity-50 cursor-not-allowed"
               />
             </li>
             <li className="py-3 flex items-center justify-between gap-4">
-              <span className="text-sm text-ink">{t('settings.notifications.weeklyReport')}</span>
+              <span className="inline-flex items-center gap-2 text-sm text-ink-3">
+                {t('settings.notifications.weeklyReport')}
+                <ComingSoonPill />
+              </span>
               <input
                 type="checkbox"
-                defaultChecked
-                className="h-4 w-4 rounded border-line-strong accent-(--color-accent)"
+                disabled
+                className="h-4 w-4 rounded border-line-strong accent-(--color-accent) opacity-50 cursor-not-allowed"
               />
             </li>
           </ul>
@@ -266,16 +280,24 @@ export default function SettingsContent() {
         >
           <ul className="divide-y divide-line">
             <li className="py-3 flex items-center justify-between gap-4">
-              <span className="text-sm font-medium text-ink">{t('settings.security.changePassword')}</span>
-              <button className="text-sm text-accent hover:text-accent-strong font-medium">
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-ink-3">
+                {t('settings.security.changePassword')}
+                <ComingSoonPill />
+              </span>
+              <button
+                disabled
+                className="text-sm text-ink-3 font-medium opacity-50 cursor-not-allowed"
+              >
                 {t('common.edit')} &rarr;
               </button>
             </li>
             <li className="py-3 flex items-center justify-between gap-4">
-              <span className="text-sm font-medium text-ink">{t('settings.security.twoFactor')}</span>
-              <span className="inline-flex items-center gap-2 text-xs">
-                <span className="inline-block h-2 w-2 rounded-full bg-signal" />
-                <span className="text-ink-3">{t('settings.security.twoFactorOff')}</span>
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-ink-3">
+                {t('settings.security.twoFactor')}
+                <ComingSoonPill />
+              </span>
+              <span className="text-xs text-ink-3">
+                {t('settings.security.twoFactorOff')}
               </span>
             </li>
           </ul>
@@ -287,12 +309,18 @@ export default function SettingsContent() {
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-ink">{t('settings.iot.noneTitle')}</p>
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-ink-3">
+                {t('settings.iot.noneTitle')}
+                <ComingSoonPill />
+              </p>
               <p className="text-sm text-ink-3 mt-1 max-w-md leading-relaxed">
                 {t('settings.iot.noneBody')}
               </p>
             </div>
-            <button className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors">
+            <button
+              disabled
+              className="px-4 py-2 rounded-md border border-line text-sm font-medium text-ink-3 opacity-50 cursor-not-allowed"
+            >
               {t('settings.iot.add')}
             </button>
           </div>
@@ -301,14 +329,26 @@ export default function SettingsContent() {
         <SettingsSection title={t('settings.section.data')} hint={t('settings.section.dataSub')}>
           <ul className="divide-y divide-line">
             <li className="py-3 flex items-center justify-between gap-4">
-              <span className="text-sm text-ink">{t('settings.data.export')}</span>
-              <button className="text-sm text-accent hover:text-accent-strong font-medium">
+              <span className="inline-flex items-center gap-2 text-sm text-ink-3">
+                {t('settings.data.export')}
+                <ComingSoonPill />
+              </span>
+              <button
+                disabled
+                className="text-sm text-ink-3 font-medium opacity-50 cursor-not-allowed"
+              >
                 {t('common.edit')} &rarr;
               </button>
             </li>
             <li className="py-3 flex items-center justify-between gap-4">
-              <span className="text-sm text-signal-strong">{t('settings.data.delete')}</span>
-              <button className="text-sm text-signal-strong hover:text-signal font-medium">
+              <span className="inline-flex items-center gap-2 text-sm text-ink-3">
+                {t('settings.data.delete')}
+                <ComingSoonPill />
+              </span>
+              <button
+                disabled
+                className="text-sm text-ink-3 font-medium opacity-50 cursor-not-allowed"
+              >
                 {t('common.delete')} &rarr;
               </button>
             </li>

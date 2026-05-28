@@ -82,9 +82,10 @@ full chatbot flow.
 From the repository root:
 
 ```bash
-cp backend/.env.example backend/.env
-# Edit backend/.env: set LLM_BASE_URL / LLM_API_KEY / LLM_MODEL (Groq or Ollama).
-docker compose up backend db
+cp .env.example .env
+# Edit .env: set SECRET_KEY, DATABASE_URL, SERVICE_ACCOUNT_TOKEN, and
+# LLM_BASE_URL / LLM_API_KEY / LLM_MODEL (Groq or Ollama).
+docker compose up backend
 ```
 
 ### Without Docker
@@ -104,9 +105,10 @@ pip install -r requirements.txt
 # Windows: Download Tesseract from https://github.com/UB-Mannheim/tesseract/wiki
 # Ubuntu: sudo apt install tesseract-ocr tesseract-ocr-eng
 
-# Configure environment
-cp .env.example .env
-# Edit .env: set SECRET_KEY, DATABASE_URL, and LLM_BASE_URL / LLM_API_KEY / LLM_MODEL
+# Configure environment (single source of truth at repo root)
+cp ../.env.example ../.env
+# Edit ../.env: set SECRET_KEY, DATABASE_URL, SERVICE_ACCOUNT_TOKEN, and
+# LLM_BASE_URL / LLM_API_KEY / LLM_MODEL
 
 # Migrate and run
 python manage.py migrate
@@ -116,7 +118,9 @@ python manage.py runserver 0.0.0.0:8000
 
 ## Environment Variables
 
-See `.env.example`. Summary:
+All env vars live in the centralized **repo-root `.env`** (see
+`<repo_root>/.env.example`). The backend reads it via
+`load_dotenv(BASE_DIR.parent / ".env")` in `core/settings.py`. Summary:
 
 | Variable                | Required             | Default | Notes                                                |
 |-------------------------|----------------------|---------|------------------------------------------------------|

@@ -10,7 +10,10 @@ from sqlalchemy import create_engine, Engine, text
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-load_dotenv(PROJECT_ROOT / ".env")
+# Single source of truth for env: <repo_root>/.env (one level above ml/).
+# Falls back silently to system env when running inside docker-compose,
+# where env_file injects vars directly.
+load_dotenv(PROJECT_ROOT.parent / ".env")
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://postgres@localhost:5433/bantay_dagitab",
