@@ -163,6 +163,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Parse CORS origins from .env (e.g., http://localhost:3000,https://my-frontend.vercel.app)
 cors_env = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000')
 CORS_ALLOWED_ORIGINS = cors_env.split(',')
+CSRF_TRUSTED_ORIGINS = cors_env.split(',')
 CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
