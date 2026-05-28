@@ -41,10 +41,15 @@ type ConsumptionIndicatorApi = {
 };
 
 type UserProfileApi = {
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
+  user: {
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+  device_id: string;
+  meralco_account_number: string;
+  has_completed_onboarding: boolean;
 };
 
 type BillHistoryApi = {
@@ -243,7 +248,7 @@ export default function DashboardContent() {
     }
   });
 
-  const userName = userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : '';
+  const userName = userProfile?.user ? `${userProfile.user.first_name} ${userProfile.user.last_name}`.trim() : '';
   const currentBill = billData.length > 0 ? billData[0] : null;
   const userAccount = currentBill?.meralco_account_number ? `Account: ${currentBill.meralco_account_number}` : '';
 
