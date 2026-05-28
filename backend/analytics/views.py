@@ -129,3 +129,15 @@ class BillVsTelemetryView(APIView):
             columns = [col[0] for col in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
         return Response(results)
+
+class ConsumptionIndicatorView(APIView):
+    @extend_schema(summary="Consumption Indicator (Dashboard)", description="Returns summary metrics for the dashboard")
+    def get(self, request, *args, **kwargs):
+        # Stub response matching frontend expectations
+        return Response({
+            "projected_bill_php": 2500,
+            "consumption_so_far_kwh": 210,
+            "budget_used_percentage": 75,
+            "remaining_budget_php": 833,
+            "current_load_watts": 450
+        })

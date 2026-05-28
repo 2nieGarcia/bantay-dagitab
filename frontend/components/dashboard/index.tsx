@@ -16,30 +16,45 @@ import { EmptyState } from '@/components/templates/EmptyState';
 // API Response Types
 type AnomalyApi = {
   alert_id: string;
-  user_id: number;
+  user_account_id: string;
   device_id: string;
   timestamp: string;
   alert_type: string;
   expected_wattage_range: string;
   actual_wattage: number;
   message: string;
-};
-
-type BillVsTelemetryApi = {
-  bill_id: number;
-  user_id: number;
-  meralco_account_number: string;
-  billing_period: string;
-  billed_kwh: number;
-  total_bill_php: number;
-  telemetry_kwh: number;
-  kwh_variance: number;
+  status: string;
 };
 
 type MonthlyConsumptionApi = {
   user_id: number;
-  month: string;
+  period: string;
   kwh: number;
+};
+
+type ConsumptionIndicatorApi = {
+  projected_bill_php: number;
+  consumption_so_far_kwh: number;
+  budget_used_percentage: number;
+  remaining_budget_php: number;
+  current_load_watts: number;
+};
+
+type UserProfileApi = {
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+};
+
+type BillHistoryApi = {
+  id: number;
+  user_account_id: string;
+  scan_timestamp: string;
+  meralco_account_number: string;
+  billing_period: string;
+  total_kwh_consumed: number;
+  total_bill_php: number;
 };
 
 type LatestReadingApi = {
@@ -169,19 +184,21 @@ function Sparkline({ readings }: { readings: LatestReadingApi[] }) {
   );
 }
 
-export default function DashboardContent({
-  userName,
-  userAccount,
-}: {
-  userName: string;
-  userAccount: string;
-}) {
+export default function DashboardContent() {
   const { t } = useLang();
   const ctx = t('dashboard.projectionContext', { amount: '__SIGNAL__' });
   const [ctxBefore, ctxAfter] = ctx.split('__SIGNAL__');
   const [range, setRange] = useState<RangeKey>('month');
 
   // React Query Fetchers
+  const { data: userProfile } = useQuery<UserProfileApi>({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const res = await api.get('/users/profile/');
+      return res.data;
+    }
+  });
+
   // Anomalies use the ORM endpoint with status=active + a since=<cutoff>
   // matching the active range tab. This bypasses the SQL view's INNER JOIN
   // on users_profile (which would silently drop alerts for accounts without
@@ -202,11 +219,11 @@ export default function DashboardContent({
     refetchOnWindowFocus: true,
   });
 
-  const { data: billData = [] } = useQuery<BillVsTelemetryApi[]>({
+  const { data: indicatorData } = useQuery<ConsumptionIndicatorApi>({
     queryKey: ['consumptionIndicator'],
     queryFn: async () => {
-      const res = await api.get('/analytics/bill-vs-telemetry/');
-      return Array.isArray(res.data) ? res.data : [res.data];
+      const res = await api.get('/analytics/consumption-indicator/');
+      return res.data;
     }
   });
 
@@ -217,6 +234,22 @@ export default function DashboardContent({
       return res.data;
     }
   });
+
+  const { data: billData = [] } = useQuery<BillHistoryApi[]>({
+    queryKey: ['billingHistory'],
+    queryFn: async () => {
+      const res = await api.get('/billing/');
+      return res.data;
+    }
+  });
+
+  const userName = userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : '';
+  const currentBill = billData.length > 0 ? billData[0] : null;
+  const userAccount = currentBill?.meralco_account_number ? `Account: ${currentBill.meralco_account_number}` : '';
+
+  const projectedBillPhp = indicatorData?.projected_bill_php || 0;
+  const consumptionSoFarKwh = indicatorData?.consumption_so_far_kwh || 0;
+  const totalKwh = consumptionSoFarKwh || devices.reduce((s, d) => s + d.kwh, 0);
 
   // Per-day kWh bars for the bottom 'Use per day' chart — driven by the
   // active range tab. Month = 30 bars, Week = 7, Today = 1.
@@ -268,7 +301,6 @@ export default function DashboardContent({
   // this is just the same list — kept as a stable name for readability.
   const anomaliesInRange = anomaliesData;
 
-  const currentBill = billData.length > 0 ? billData[0] : null;
   const totalBillPhp = currentBill?.total_bill_php || 0;
   const kwhVariance = currentBill?.kwh_variance || 0;
   // Stats now come from the range-window endpoint so day/week/month tabs
@@ -428,13 +460,13 @@ export default function DashboardContent({
       </section>
 
       <section className="rounded-lg border border-line bg-circuit px-8 py-10 mb-12">
-        {!currentBill ? (
+        {!indicatorData ? (
           <EmptyState 
             className="w-full h-full py-16"
-            title="No Billing Data" 
+            title={t('dashboard.empty.billingTitle')} 
             description={
               <>
-                It seems you haven't added a bill yet. <Link href="/bills" className="text-accent hover:underline font-medium">Would you like to add one?</Link>
+                {t('dashboard.empty.billingBody')} <Link href="/bills" className="text-accent hover:underline font-medium">{t('common.uploadBill')}</Link>
               </>
             }
           />
@@ -450,7 +482,7 @@ export default function DashboardContent({
               </p>
               <p className="text-base md:text-lg text-ink-2 mt-6 max-w-xl leading-relaxed">
                 {ctxBefore}
-                <span className="font-readout text-signal-strong">₱{kwhVariance}</span>
+                <span className="font-readout text-signal-strong">₱{indicatorData?.remaining_budget_php || 0}</span>
                 {ctxAfter}
               </p>
             </div>
@@ -507,8 +539,8 @@ export default function DashboardContent({
         {anomaliesInRange.length === 0 ? (
           <EmptyState
             className="w-full py-12"
-            title={`No anomalies ${RANGE_LABEL[range]}`}
-            description={`No anomalies were detected ${RANGE_LABEL[range]}.`}
+            title={t('dashboard.empty.anomaliesTitle')} 
+            description={t('dashboard.empty.anomaliesBody')}
           />
         ) : (
           <ul className="divide-y divide-line border-y border-line">
@@ -522,7 +554,7 @@ export default function DashboardContent({
                   <p className="text-sm text-ink-2 mt-1 leading-relaxed">{a.message}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs text-ink-3">Actual / Expected</p>
+                  <p className="text-xs text-ink-3">{t('dashboard.anomalies.actualExpected')}</p>
                   <p className="font-readout text-xl text-signal-strong mt-0.5 leading-none">
                     {a.actual_wattage} / {a.expected_wattage_range} W
                   </p>
@@ -549,8 +581,8 @@ export default function DashboardContent({
           {dailyData.length === 0 || dailyData.every(d => d.kwh === 0) ? (
             <EmptyState
               className="w-full h-56"
-              title="No Consumption Data"
-              description="No IoT readings have been recorded for this window."
+              title={t('dashboard.empty.monthlyTitle')}
+              description={t('dashboard.empty.monthlyBody')}
             />
           ) : (
             (() => {
@@ -608,7 +640,7 @@ export default function DashboardContent({
         <div className="lg:col-span-5 lg:pl-12 lg:border-l lg:border-line relative">
           <div className="absolute inset-0 left-0 lg:left-12 z-10 flex items-center justify-center bg-surface/50 backdrop-blur-[2px]">
             <span className="text-lg font-semibold text-ink tracking-tight">
-              Coming Soon!
+              {t('common.comingSoon')}
             </span>
           </div>
           <div>

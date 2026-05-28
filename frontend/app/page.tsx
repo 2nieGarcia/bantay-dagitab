@@ -5,16 +5,41 @@ import Link from 'next/link';
 import Cookies from 'js-cookie';
 import { useLang } from '@/lib/i18n';
 import { Brand } from '@/components/shared/brand';
+import { API_URL } from '@/lib/api';
 
 export default function Home() {
   const { t } = useLang();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<'loading' | 'online' | 'offline'>('loading');
+
+  // Dynamic content for the sample UI
+  const sampleData = {
+    projection: 2847,
+    contextAmount: 430,
+    consumption: 234,
+  };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    const token = Cookies.get('access_token');
-    setIsLoggedIn(!!token);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoggedIn(!!Cookies.get('access_token'));
+
+    const fetchStatus = async () => {
+      try {
+        const baseUrl = API_URL.replace(/\/api\/?$/, '');
+        const res = await fetch(`${baseUrl}/health/`);
+        if (res.ok) {
+          setSystemStatus('online');
+        } else {
+          setSystemStatus('offline');
+        }
+      } catch {
+        setSystemStatus('offline');
+      }
+    };
+    fetchStatus();
   }, []);
 
   return (
@@ -94,11 +119,11 @@ export default function Home() {
               <p className="text-sm text-ink-2 mb-3 font-medium">{t('home.sample.projection')}</p>
               <p className="font-readout text-7xl md:text-8xl text-ink leading-none">
                 <span className="text-ink-3 align-top text-3xl md:text-4xl mr-1 font-normal font-sans">₱</span>
-                2,847
+                {sampleData.projection.toLocaleString()}
               </p>
               <p className="text-base md:text-lg text-ink-2 mt-6 max-w-xl leading-relaxed">
                 {t('home.sample.context', { amount: '' }).split('{amount}')[0]}
-                <span className="font-readout text-signal-strong">₱430</span>
+                <span className="font-readout text-signal-strong">₱{sampleData.contextAmount}</span>
                 {t('home.sample.context', { amount: '' }).split('{amount}')[1]}
               </p>
             </div>
@@ -109,7 +134,7 @@ export default function Home() {
                   {t('home.sample.consumption')}
                 </p>
                 <p className="font-readout text-3xl text-ink mt-2 leading-none">
-                  234 <span className="text-base text-ink-3 font-sans font-normal">kWh</span>
+                  {sampleData.consumption} <span className="text-base text-ink-3 font-sans font-normal">kWh</span>
                 </p>
               </div>
               <div>
@@ -147,6 +172,12 @@ export default function Home() {
             <Brand size="sm" href={null} />
           </div>
           <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-6">
+            <div className="flex items-center gap-2 mr-4">
+              <span className={`w-2 h-2 rounded-full ${systemStatus === 'online' ? 'bg-[#10B981]' : systemStatus === 'offline' ? 'bg-[#EF4444]' : 'bg-ink-3'}`}></span>
+              <span className="text-xs text-ink-3 font-medium uppercase tracking-wider">
+                {systemStatus === 'loading' ? 'Checking Status...' : systemStatus === 'online' ? 'System Online' : 'System Offline'}
+              </span>
+            </div>
             <p className="text-xs text-ink-3">{t('home.footer.school')}</p>
             <p className="text-xs text-ink-3">{t('home.footer.sdg')}</p>
           </div>

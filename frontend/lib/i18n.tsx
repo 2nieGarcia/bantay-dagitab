@@ -49,6 +49,10 @@ const en: Dict = {
   'common.edit': 'Edit',
   'common.delete': 'Delete',
   'common.send': 'Send',
+  'common.meter': 'Meter',
+  'common.loading': 'Loading...',
+  'common.error': 'Error loading data.',
+  'common.comingSoon': 'Coming Soon!',
 
   'home.kicker': 'For MERALCO households',
   'home.headline1': "See your bill take shape,",
@@ -114,6 +118,14 @@ const en: Dict = {
   'dashboard.device.electronicsNote': 'Daily',
   'dashboard.device.other': 'Everything else',
   'dashboard.device.otherNote': 'Lights, chargers, fans',
+  'dashboard.empty.billingTitle': 'No Billing Data',
+  'dashboard.empty.billingBody': "It seems you haven't added a bill yet. Would you like to add one?",
+  'dashboard.empty.anomaliesTitle': 'No Anomalies Detected',
+  'dashboard.empty.anomaliesBody': 'There are currently no usage anomalies reported.',
+  'dashboard.empty.monthlyTitle': 'No Consumption Data',
+  'dashboard.empty.monthlyBody': 'Monthly consumption history is currently empty.',
+  'dashboard.anomalies.actualExpected': 'Actual / Expected',
+
 
   'bills.title': 'Your bills',
   'bills.lede':
@@ -144,6 +156,17 @@ const en: Dict = {
   'bills.dueDate': 'Due date',
   'bills.accept': 'Accept and save',
   'bills.editDetails': 'Edit details',
+  'bills.editDetailsHelper': 'Only the four fields below are persisted. Cancel to leave the saved bill unchanged.',
+  'bills.editDetailsError': 'kWh and total amount must be non-negative numbers.',
+  'bills.deleteConfirm': 'Delete "{name}"? This cannot be undone.',
+  'bills.uploading': 'Uploading...',
+  'bills.accepting': 'Accepting...',
+  'bills.deleting': 'Deleting...',
+  'bills.error.process': 'Failed to process bill image.',
+  'bills.error.upload': 'Failed to upload bill.',
+  'bills.error.save': 'Failed to save bill.',
+  'bills.error.delete': 'Failed to delete bill.',
+  'bills.error.update': 'Failed to update bill.',
   'bills.empty.title': 'No bills yet',
   'bills.empty.body':
     'Upload a photo of your MERALCO bill in the chat. We will read it and add it here.',
@@ -232,6 +255,10 @@ const en: Dict = {
   'register.loginLink': 'Sign in',
   'register.terms': 'I agree to the terms and privacy policy.',
   'register.submit': 'Create my account',
+  'register.submitting': 'Registering...',
+  'register.errorGeneral': 'Registration failed. Please try again.',
+  'register.placeholder.name': 'Juan Dela Cruz',
+  'register.confirmPassword': 'Confirm password',
 
   'bills.lowConfidence.title': 'OCR confidence is low',
   'bills.lowConfidence.body':
@@ -250,6 +277,8 @@ const en: Dict = {
   'onboarding.skip': 'Skip for now',
   'onboarding.errorRequired': 'Both fields are required to finish setup. Use "Skip for now" if you do not have them yet.',
   'onboarding.errorAccountLength': 'MERALCO account number should be 10 digits.',
+  'onboarding.errorGeneral': 'Could not save household identity. Please try again.',
+  'onboarding.submitting': 'Saving...',
 
   'chat.title': 'Bill assistant',
   'chat.greeting':
@@ -299,6 +328,10 @@ const fil: Dict = {
   'common.edit': 'I-edit',
   'common.delete': 'Burahin',
   'common.send': 'Ipadala',
+  'common.meter': 'Metro',
+  'common.loading': 'Naglo-load...',
+  'common.error': 'May error sa pag-load ng data.',
+  'common.comingSoon': 'Malapit na!',
 
   'home.kicker': 'Para sa mga sambahayan ng MERALCO',
   'home.headline1': 'Tingnan kung magkano na ang bill mo,',
@@ -364,6 +397,13 @@ const fil: Dict = {
   'dashboard.device.electronicsNote': 'Araw-araw',
   'dashboard.device.other': 'Iba pa',
   'dashboard.device.otherNote': 'Ilaw, charger, fan',
+  'dashboard.empty.billingTitle': 'Wala pang Bill Data',
+  'dashboard.empty.billingBody': 'Mukhang wala ka pang na-upload na bill. Gusto mo bang magdagdag?',
+  'dashboard.empty.anomaliesTitle': 'Walang Na-detect na Anomalya',
+  'dashboard.empty.anomaliesBody': 'Kasalukuyang walang naiulat na di-pangkaraniwang konsumo.',
+  'dashboard.empty.monthlyTitle': 'Walang Data ng Konsumo',
+  'dashboard.empty.monthlyBody': 'Walang laman ang kasaysayan ng buwanang konsumo.',
+  'dashboard.anomalies.actualExpected': 'Tunay / Inaasahan',
 
   'bills.title': 'Mga bill mo',
   'bills.lede':
@@ -394,6 +434,17 @@ const fil: Dict = {
   'bills.dueDate': 'Bayaran bago',
   'bills.accept': 'Tanggapin at i-save',
   'bills.editDetails': 'I-edit',
+  'bills.editDetailsHelper': 'Ang apat na field sa ibaba lamang ang masa-save. I-cancel para iwanan ang na-save na bill na walang pagbabago.',
+  'bills.editDetailsError': 'Ang kWh at kabuuang halaga ay dapat hindi negatibo.',
+  'bills.deleteConfirm': 'Burahin ang "{name}"? Hindi na ito maibabalik.',
+  'bills.uploading': 'Ina-upload...',
+  'bills.accepting': 'Tinatanggap...',
+  'bills.deleting': 'Binubura...',
+  'bills.error.process': 'Nabigong basahin ang litrato ng bill.',
+  'bills.error.upload': 'Nabigong i-upload ang bill.',
+  'bills.error.save': 'Nabigong i-save ang bill.',
+  'bills.error.delete': 'Nabigong burahin ang bill.',
+  'bills.error.update': 'Nabigong i-update ang bill.',
   'bills.empty.title': 'Wala pang bill',
   'bills.empty.body':
     'I-upload ang litrato ng MERALCO bill mo sa chat. Babasahin namin at idadagdag dito.',
@@ -481,6 +532,10 @@ const fil: Dict = {
   'register.loginLink': 'Mag-log in',
   'register.terms': 'Sumasang-ayon ako sa terms at privacy policy.',
   'register.submit': 'Gawin ang account ko',
+  'register.submitting': 'Nirerehistro...',
+  'register.errorGeneral': 'Bigo ang pag-rehistro. Subukan muli.',
+  'register.placeholder.name': 'Juan Dela Cruz',
+  'register.confirmPassword': 'Kumpirmahin ang password',
 
   'bills.lowConfidence.title': 'Mababa ang OCR confidence',
   'bills.lowConfidence.body':
@@ -499,6 +554,8 @@ const fil: Dict = {
   'onboarding.skip': 'Laktawan muna',
   'onboarding.errorRequired': 'Kailangan ang dalawang field para matapos. Gamitin ang "Laktawan muna" kung wala ka pa.',
   'onboarding.errorAccountLength': 'Dapat 10 digits ang MERALCO account number.',
+  'onboarding.errorGeneral': 'Hindi ma-save ang detalye. Subukan muli.',
+  'onboarding.submitting': 'Sini-save...',
 
   'chat.title': 'Katulong sa bill',
   'chat.greeting':

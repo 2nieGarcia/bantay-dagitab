@@ -160,6 +160,7 @@ function AlertCard({
             ⌄
           </span>
         </div>
+
       </button>
 
       {isOpen && (
@@ -368,11 +369,11 @@ export default function ReportsContent() {
 
       {isLoading ? (
         <div className="flex justify-center items-center h-32">
-          <p className="text-ink-2">Loading...</p>
+          <p className="text-ink-2">{t('common.loading') || 'Loading...'}</p>
         </div>
       ) : isError ? (
         <div className="flex justify-center items-center h-32">
-          <p className="text-signal-strong">Error loading anomalies.</p>
+          <p className="text-signal-strong">{t('common.error') || 'Error loading data.'}</p>
         </div>
       ) : (
         <>

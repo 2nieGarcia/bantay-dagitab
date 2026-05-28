@@ -18,9 +18,14 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from .views import health_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # Health Check
+    path('health/', health_check, name='health_check'),
+    path('ml/llm/health/', health_check, name='llm_health_check'),
     
     # Auth Endpoints
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

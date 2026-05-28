@@ -5,6 +5,7 @@ from .views import (
     AnomalyAlertUpdateView,
     BillVsTelemetryView,
     RecentAnomaliesView,
+    ConsumptionIndicatorView,
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path('ingest/', AnomalyAlertCreateView.as_view(), name='alert-create'),
     path('recent-anomalies/', RecentAnomaliesView.as_view(), name='recent-anomalies'),
     path('bill-vs-telemetry/', BillVsTelemetryView.as_view(), name='bill-vs-telemetry'),
+    path('consumption-indicator/', ConsumptionIndicatorView.as_view(), name='consumption-indicator'),
 ]

@@ -31,14 +31,14 @@ class ChatbotInteractionView(APIView):
         examples=[
             OpenApiExample(
                 "Valid Chat Query",
-                value={"query": "Why was my bill so high last month?"},
+                value={"user_query": "Why was my bill so high last month?"},
             )
         ],
     )
     def post(self, request, *args, **kwargs):
         request_serializer = ChatRequestSerializer(data=request.data)
         request_serializer.is_valid(raise_exception=True)
-        user_query = request_serializer.validated_data["query"]
+        user_query = request_serializer.validated_data["user_query"]
         lang = request_serializer.validated_data.get("lang", "en")
         user = request.user
 

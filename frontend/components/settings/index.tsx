@@ -94,6 +94,13 @@ export default function SettingsContent() {
   const [editLastName, setEditLastName] = useState('');
   const [editMeralcoAccount, setEditMeralcoAccount] = useState('');
 
+  // Password State
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   const { data: profile } = useQuery({
     queryKey: ['userProfile'],
     queryFn: async () => {
@@ -102,16 +109,21 @@ export default function SettingsContent() {
     },
   });
 
+  const { data: accountSettings } = useQuery({
+    queryKey: ['accountSettings'],
+    queryFn: async () => {
+      const res = await api.get('/users/settings/account/');
+      return res.data;
+    },
+  });
+
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
-      return api.put('/users/profile/', {
+      return api.patch('/users/profile/', {
         user: {
-          ...profile?.user,
           first_name: editFirstName,
           last_name: editLastName,
         },
-        first_name: editFirstName,
-        last_name: editLastName,
         meralco_account_number: editMeralcoAccount,
       });
     },
@@ -119,6 +131,35 @@ export default function SettingsContent() {
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       setIsEditingAccount(false);
     },
+  });
+
+  const updateAccountSettingsMutation = useMutation({
+    mutationFn: async (newSettings: any) => {
+      return api.patch('/users/settings/account/', newSettings);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accountSettings'] });
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      return api.post('/users/settings/security/change-password/', {
+        old_password: oldPassword,
+        new_password: newPassword,
+      });
+    },
+    onSuccess: () => {
+      setIsEditingPassword(false);
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordError('');
+      alert(t('settings.security.passwordChangedSuccess') || 'Password changed successfully');
+    },
+    onError: (error: any) => {
+      setPasswordError(error.response?.data?.old_password?.[0] || error.response?.data?.detail || 'An error occurred.');
+    }
   });
 
   const handleEditClick = () => {
@@ -135,6 +176,15 @@ export default function SettingsContent() {
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     updateProfileMutation.mutate();
+  };
+
+  const handleSavePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setPasswordError(t('settings.security.passwordsDoNotMatch') || 'Passwords do not match');
+      return;
+    }
+    changePasswordMutation.mutate();
   };
 
   const handleLogout = () => {
@@ -161,14 +211,20 @@ export default function SettingsContent() {
               current={lang}
               label={t('settings.language.english')}
               hint={t('settings.language.englishHint')}
-              onSelect={setLang}
+              onSelect={(v) => {
+                setLang(v);
+                updateAccountSettingsMutation.mutate({ language: v });
+              }}
             />
             <LanguageChoice
               value="fil"
               current={lang}
               label={t('settings.language.filipino')}
               hint={t('settings.language.filipinoHint')}
-              onSelect={setLang}
+              onSelect={(v) => {
+                setLang(v);
+                updateAccountSettingsMutation.mutate({ language: v });
+              }}
             />
           </div>
         </SettingsSection>
@@ -256,8 +312,9 @@ export default function SettingsContent() {
               </span>
               <input
                 type="checkbox"
-                disabled
-                className="h-4 w-4 rounded border-line-strong accent-(--color-accent) opacity-50 cursor-not-allowed"
+                checked={accountSettings?.email_alerts ?? true}
+                onChange={(e) => updateAccountSettingsMutation.mutate({ email_alerts: e.target.checked })}
+                className="h-4 w-4 rounded border-line-strong accent-(--color-accent)"
               />
             </li>
             <li className="py-3 flex items-center justify-between gap-4">
@@ -267,8 +324,9 @@ export default function SettingsContent() {
               </span>
               <input
                 type="checkbox"
-                disabled
-                className="h-4 w-4 rounded border-line-strong accent-(--color-accent) opacity-50 cursor-not-allowed"
+                checked={accountSettings?.weekly_report ?? true}
+                onChange={(e) => updateAccountSettingsMutation.mutate({ weekly_report: e.target.checked })}
+                className="h-4 w-4 rounded border-line-strong accent-(--color-accent)"
               />
             </li>
           </ul>
@@ -278,29 +336,88 @@ export default function SettingsContent() {
           title={t('settings.section.security')}
           hint={t('settings.section.securitySub')}
         >
-          <ul className="divide-y divide-line">
-            <li className="py-3 flex items-center justify-between gap-4">
-              <span className="inline-flex items-center gap-2 text-sm font-medium text-ink-3">
-                {t('settings.security.changePassword')}
-                <ComingSoonPill />
+          <div className="divide-y divide-line">
+            <div className="py-3">
+              {isEditingPassword ? (
+                <form onSubmit={handleSavePassword} className="space-y-4">
+                  {passwordError && (
+                    <div className="text-sm text-signal-strong bg-signal-soft p-3 rounded-md">
+                      {passwordError}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-1">Old Password</label>
+                    <input
+                      type="password"
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 border border-line-strong rounded-md text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-1">New Password</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      className="w-full px-3 py-2 border border-line-strong rounded-md text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-1">Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      className="w-full px-3 py-2 border border-line-strong rounded-md text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingPassword(false);
+                        setPasswordError('');
+                      }}
+                      className="px-4 py-2 rounded-md border border-line-strong text-sm font-medium text-ink hover:bg-elevated transition-colors"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={changePasswordMutation.isPending}
+                      className="px-4 py-2 rounded-md bg-accent text-accent-ink text-sm font-medium hover:bg-accent-strong transition-colors disabled:opacity-50"
+                    >
+                      {changePasswordMutation.isPending ? 'Saving...' : t('common.save')}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm font-medium text-ink">{t('settings.security.changePassword')}</span>
+                  <button 
+                    onClick={() => setIsEditingPassword(true)}
+                    className="text-sm text-accent hover:text-accent-strong font-medium"
+                  >
+                    {t('common.edit')} &rarr;
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="py-3 flex items-center justify-between gap-4">
+              <span className="text-sm font-medium text-ink">{t('settings.security.twoFactor')}</span>
+              <span className="inline-flex items-center gap-2 text-xs">
+                <span className="inline-block h-2 w-2 rounded-full bg-signal" />
+                <span className="text-ink-3">{t('settings.security.twoFactorOff')}</span>
               </span>
-              <button
-                disabled
-                className="text-sm text-ink-3 font-medium opacity-50 cursor-not-allowed"
-              >
-                {t('common.edit')} &rarr;
-              </button>
-            </li>
-            <li className="py-3 flex items-center justify-between gap-4">
-              <span className="inline-flex items-center gap-2 text-sm font-medium text-ink-3">
-                {t('settings.security.twoFactor')}
-                <ComingSoonPill />
-              </span>
-              <span className="text-xs text-ink-3">
-                {t('settings.security.twoFactorOff')}
-              </span>
-            </li>
-          </ul>
+            </div>
+          </div>
         </SettingsSection>
 
         <SettingsSection

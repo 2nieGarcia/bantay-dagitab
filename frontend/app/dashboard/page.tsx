@@ -8,7 +8,7 @@ export default function DashboardPage() {
   const [queryClient] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={queryClient}>
-      <DashboardContent userName="User" userAccount="Account: ***-***-3530" />
+      <DashboardContent />
     </QueryClientProvider>
   );
 }

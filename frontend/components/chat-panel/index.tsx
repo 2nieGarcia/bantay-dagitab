@@ -78,7 +78,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     setIsLoading(true);
 
     try {
-      const res = await api.post('/chat/ask/', { query: messageContent, lang });
+      const res = await api.post('/chat/ask/', { user_query: messageContent, lang });
       const responseContent = res.data.response || t('chat.responseGeneric');
 
       // Initialize the bot message for streaming

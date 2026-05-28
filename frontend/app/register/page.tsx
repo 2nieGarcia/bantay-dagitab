@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +34,7 @@ export default function RegisterPage() {
         username: email,
         email,
         password,
+        confirm_password: confirmPassword,
         first_name: firstName,
         last_name: lastName
       });
@@ -54,26 +56,15 @@ export default function RegisterPage() {
         // fall through to /login
       }
       router.push('/login');
-    } catch (err: unknown) {
-      const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
-      let detail = 'Registration failed. Please try again.';
-      if (data && typeof data === 'object') {
-        if (typeof data.detail === 'string') {
-          detail = data.detail;
-        } else {
-          // DRF serializer errors come back as { field: ["message", ...] }
-          const firstField = Object.entries(data)[0];
-          if (firstField) {
-            const [, value] = firstField;
-            if (Array.isArray(value) && typeof value[0] === 'string') {
-              detail = value[0];
-            } else if (typeof value === 'string') {
-              detail = value;
-            }
-          }
-        }
+    } catch (err) {
+      const error = err as any;
+      if (error.response?.data) {
+        const data = error.response.data;
+        const messages = Object.values(data).flat();
+        setError(messages.length > 0 ? String(messages[0]) : t('register.errorGeneral'));
+      } else {
+        setError(t('register.errorGeneral'));
       }
-      setError(detail);
     } finally {
       setLoading(false);
     }
@@ -124,7 +115,7 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  placeholder="Juan Dela Cruz"
+                  placeholder={t('register.placeholder.name')}
                   className="w-full px-3 py-2.5 rounded-md border border-line-strong bg-page text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   autoComplete="name"
                 />
@@ -162,6 +153,22 @@ export default function RegisterPage() {
                 />
               </div>
 
+              <div>
+                <label htmlFor="confirmPassword" className="block text-xs uppercase tracking-wider font-medium text-ink-2 mb-2">
+                  {t('register.confirmPassword')}
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  placeholder={t('login.placeholder.password')}
+                  className="w-full px-3 py-2.5 rounded-md border border-line-strong bg-page text-ink placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                  autoComplete="new-password"
+                />
+              </div>
+
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -176,7 +183,7 @@ export default function RegisterPage() {
                 disabled={loading}
                 className="w-full py-3 rounded-md bg-accent text-accent-ink text-sm font-semibold hover:bg-accent-strong transition-colors mt-2 disabled:opacity-50"
               >
-                {loading ? 'Registering...' : t('register.submit')}
+                {loading ? t('register.submitting') : t('register.submit')}
               </button>
             </form>
 
