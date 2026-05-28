@@ -91,7 +91,21 @@ export default function SimulatorPage() {
   const queryClient = useQueryClient();
   const [running, setRunning] = useState(false);
   const [tickMs, setTickMs] = useState(2_000);
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const res = await api.get('/users/profile/');
+      return res.data;
+    },
+  });
+
   const [deviceId, setDeviceId] = useState('demo_meter');
+
+  useEffect(() => {
+    if (userProfile?.device_id) {
+      setDeviceId(userProfile.device_id);
+    }
+  }, [userProfile]);
   const lastValueRef = useRef<number>(450);
 
   // Live sparkline reads from the last 30 minutes so the chart starts

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Brand } from '@/components/shared/brand';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 type InjectedReading = {
@@ -25,7 +26,21 @@ type RecentAnomaly = {
 };
 
 export default function MlTesterPage() {
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const res = await api.get('/users/profile/');
+      return res.data;
+    },
+  });
+
   const [deviceId, setDeviceId] = useState('meter_test_001');
+
+  useEffect(() => {
+    if (userProfile?.device_id) {
+      setDeviceId(userProfile.device_id);
+    }
+  }, [userProfile]);
   const [avgWattage, setAvgWattage] = useState(3500);
   const [count, setCount] = useState(3);
   const [intervalMinutes, setIntervalMinutes] = useState(15);

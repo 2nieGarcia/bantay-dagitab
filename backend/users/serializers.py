@@ -65,6 +65,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', '')
         )
-        # Create the profile automatically
-        Profile.objects.get_or_create(user=user)
+        # Create the profile automatically and assign a simulated device ID
+        # Code is created in backend, and will be removed once an IoT device is operational.
+        sim_device_id = f"sim_{user.username}_001"
+        Profile.objects.get_or_create(user=user, defaults={'device_id': sim_device_id})
         return user

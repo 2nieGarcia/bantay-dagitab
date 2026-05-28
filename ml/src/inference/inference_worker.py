@@ -106,14 +106,15 @@ def fetch_unprocessed(engine, cursor_id: int, limit: int) -> pd.DataFrame:
     """
     query = text(
         """
-        SELECT id,
-               device_id,
-               user_id        AS user_account_id,
-               timestamp,
-               avg_wattage
-        FROM iot_monitoring_iotreading
-        WHERE id > :cursor_id
-        ORDER BY id ASC
+        SELECT r.id,
+               r.device_id,
+               u.username     AS user_account_id,
+               r.timestamp,
+               r.avg_wattage
+        FROM iot_monitoring_iotreading r
+        JOIN auth_user u ON r.user_id = u.id
+        WHERE r.id > :cursor_id
+        ORDER BY r.id ASC
         LIMIT :limit
         """
     )
@@ -335,7 +336,7 @@ def _build_alert_message(actual: float, predicted: float) -> str:
 
 def _build_contract_c_payload(
     *,
-    user_account_id: int,
+    user_account_id: str,
     device_id: str,
     timestamp: datetime,
     actual: float,
@@ -350,7 +351,7 @@ def _build_contract_c_payload(
     else:
         ts_iso = str(timestamp)
     return {
-        "user_account_id": int(user_account_id),
+        "user_account_id": user_account_id,
         "device_id": device_id,
         "timestamp": ts_iso,
         "alert_type": "SUSTAINED_OVER_CONSUMPTION",
